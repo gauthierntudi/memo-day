@@ -16,6 +16,7 @@ import WeeklyPlans from "@/pages/weekly-plans";
 import WeeklyPlanForm from "@/pages/weekly-plan-form";
 import WeeklyReport from "@/pages/weekly-report";
 import ExecutiveSummary from "@/pages/executive-summary";
+import SettingsPage from "@/pages/settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 function Router() {
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/weekly-plans/:id" component={WeeklyPlanForm} />
       <Route path="/weekly-report" component={WeeklyReport} />
       <Route path="/executive-summary" component={ExecutiveSummary} />
+      <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>
   );

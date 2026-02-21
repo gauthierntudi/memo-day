@@ -1,8 +1,20 @@
 import { db } from "./db";
-import { projects, dailyReports, weeklyPlans } from "@shared/schema";
+import { projects, dailyReports, weeklyPlans, users } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 export async function seedDatabase() {
+  const existingUsers = await db.select().from(users);
+  if (existingUsers.length === 0) {
+    await db.insert(users).values([
+      { name: "Ahmed Al Mansoori", email: "ahmed@memconstruction.ae", phone: "+971 50 123 4567", orgRole: "Project Manager", appRole: "admin", isActive: true },
+      { name: "Khalid Bin Rashid", email: "khalid@memconstruction.ae", phone: "+971 55 234 5678", orgRole: "Site Engineer", appRole: "user", isActive: true },
+      { name: "Fatima Al Hashemi", email: "fatima@memconstruction.ae", phone: "+971 52 345 6789", orgRole: "Safety Officer", appRole: "user", isActive: true },
+      { name: "Omar Farooq", email: "omar@memconstruction.ae", phone: "+971 56 456 7890", orgRole: "Quantity Surveyor", appRole: "viewer", isActive: true },
+      { name: "Sarah Mitchell", email: "sarah@memconstruction.ae", phone: "+971 50 567 8901", orgRole: "Director", appRole: "admin", isActive: true },
+      { name: "Ravi Sharma", email: "ravi@memconstruction.ae", phone: "+971 55 678 9012", orgRole: "Foreman", appRole: "user", isActive: false },
+    ]);
+  }
+
   const existingProjects = await db.select().from(projects);
   if (existingProjects.length > 0) return;
 

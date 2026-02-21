@@ -6,6 +6,7 @@ import {
   BarChart3,
   FileText,
   Building2,
+  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +31,7 @@ const mainItems = [
 
 const managementItems = [
   { title: "Projects", url: "/projects", icon: Building2 },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

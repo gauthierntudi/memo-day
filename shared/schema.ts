@@ -296,14 +296,32 @@ export const INVENTORY_STATUS = [
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  orgRole: text("org_role").notNull(),
+  appRole: text("app_role").notNull().default("user"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const APP_ROLES = ["admin", "user", "viewer"] as const;
+
+export const ORG_ROLES = [
+  "Project Manager",
+  "Site Engineer",
+  "Safety Officer",
+  "Quantity Surveyor",
+  "Foreman",
+  "Superintendent",
+  "Director",
+  "Construction Manager",
+  "Quality Control",
+  "HSE Manager",
+  "Planning Engineer",
+  "Contract Administrator",
+] as const;

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema } from "@shared/schema";
+import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -106,6 +106,46 @@ export async function registerRoutes(
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
     }
+  });
+
+  app.get("/api/users", async (_req, res) => {
+    const userList = await storage.getUsers();
+    res.json(userList);
+  });
+
+  app.get("/api/users/:id", async (req, res) => {
+    const user = await storage.getUser(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  });
+
+  app.post("/api/users", async (req, res) => {
+    try {
+      const validated = insertUserSchema.parse(req.body);
+      const existing = await storage.getUserByEmail(validated.email);
+      if (existing) return res.status(409).json({ message: "A user with this email already exists" });
+      const user = await storage.createUser(validated);
+      res.status(201).json(user);
+    } catch (err: unknown) {
+      res.status(400).json({ message: handleZodError(err) });
+    }
+  });
+
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const partial = insertUserSchema.partial().parse(req.body);
+      const user = await storage.updateUser(req.params.id, partial);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
+    } catch (err: unknown) {
+      res.status(400).json({ message: handleZodError(err) });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    const deleted = await storage.deleteUser(req.params.id);
+    if (!deleted) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User deleted" });
   });
 
   return httpServer;

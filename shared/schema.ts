@@ -334,6 +334,7 @@ export const ORG_ROLES = [
   "Director",
   "Executive Director",
   "Foreman",
+  "HR Manager",
   "HSE Manager",
   "Planning Engineer",
   "Project Manager",

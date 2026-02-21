@@ -243,6 +243,7 @@ export const INCIDENT_TYPES = [
   "Lost Time Injury",
   "Property Damage",
   "Environmental",
+  "Safety Compliance",
 ] as const;
 
 export const SEVERITY_LEVELS = [

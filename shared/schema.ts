@@ -45,10 +45,15 @@ export const dailyReports = pgTable("daily_reports", {
   overallProgress: integer("overall_progress").default(0),
   comments: text("comments"),
   status: text("status").notNull().default("draft"),
+  submittedBy: text("submitted_by"),
+  submittedAt: timestamp("submitted_at"),
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertDailyReportSchema = createInsertSchema(dailyReports).omit({ id: true, createdAt: true });
+export const insertDailyReportSchema = createInsertSchema(dailyReports).omit({ id: true, createdAt: true, submittedAt: true, approvedAt: true });
 export type InsertDailyReport = z.infer<typeof insertDailyReportSchema>;
 export type DailyReport = typeof dailyReports.$inferSelect;
 

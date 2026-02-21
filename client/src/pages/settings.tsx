@@ -12,9 +12,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -47,13 +47,17 @@ import {
   Shield,
   UserCheck,
   UserX,
+  Lock,
+  Crown,
+  Key,
 } from "lucide-react";
 import type { User } from "@shared/schema";
-import { APP_ROLES, ORG_ROLES } from "@shared/schema";
+import { APP_ROLES, ORG_ROLES, SUPER_ADMIN_EMAIL } from "@shared/schema";
 
 function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boolean; onOpenChange: (v: boolean) => void }) {
   const { toast } = useToast();
   const isEditing = !!user;
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -111,6 +115,9 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
       <DialogContent className="sm:max-w-md" data-testid="dialog-user-form">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit User" : "Add New User"}</DialogTitle>
+          <DialogDescription>
+            {isEditing ? "Update user details below." : "Add a new authorized user to the system."}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
@@ -119,7 +126,15 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
           </div>
           <div className="space-y-2">
             <Label htmlFor="user-email">Email Address *</Label>
-            <Input id="user-email" data-testid="input-user-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" />
+            <Input
+              id="user-email"
+              data-testid="input-user-email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="name@company.com"
+              disabled={isSuperAdmin}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="user-phone">Phone Number</Label>
@@ -140,7 +155,7 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
           </div>
           <div className="space-y-2">
             <Label>App Role *</Label>
-            <Select value={appRole} onValueChange={setAppRole}>
+            <Select value={appRole} onValueChange={setAppRole} disabled={isSuperAdmin}>
               <SelectTrigger data-testid="select-app-role">
                 <SelectValue placeholder="Select app role" />
               </SelectTrigger>
@@ -152,6 +167,9 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
                 ))}
               </SelectContent>
             </Select>
+            {isSuperAdmin && (
+              <p className="text-xs text-muted-foreground">Super admin role cannot be changed.</p>
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -167,10 +185,88 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
   );
 }
 
+function SetPasswordDialog({ userId, userName, open, onOpenChange }: { userId: string; userName: string; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { toast } = useToast();
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: async (pwd: string) => {
+      const res = await apiRequest("POST", `/api/users/${userId}/set-password`, { password: pwd });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Password set", description: `Password has been set for ${userName}.` });
+      setPassword("");
+      setConfirmPassword("");
+      onOpenChange(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!password || password.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" });
+      return;
+    }
+    mutation.mutate(password);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md" data-testid="dialog-set-password">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" /> Set Password</DialogTitle>
+          <DialogDescription>Set a login password for {userName}.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New Password</Label>
+            <Input
+              id="new-password"
+              data-testid="input-new-password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Input
+              id="confirm-password"
+              data-testid="input-confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter password"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={handleSubmit} disabled={mutation.isPending} data-testid="button-save-password">
+            {mutation.isPending ? "Saving..." : "Set Password"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
+  const [passwordUser, setPasswordUser] = useState<{ id: string; name: string } | null>(null);
 
   const { data: users, isLoading } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
@@ -301,70 +397,108 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="divide-y">
-              {users.map(user => (
-                <div key={user.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0" data-testid={`row-user-${user.id}`}>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                    {user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium" data-testid={`text-user-name-${user.id}`}>{user.name}</span>
-                      <Badge variant={appRoleBadgeVariant(user.appRole)} className="capitalize text-xs" data-testid={`badge-app-role-${user.id}`}>
-                        {user.appRole}
-                      </Badge>
-                      {!user.isActive && (
-                        <Badge variant="destructive" className="text-xs">Inactive</Badge>
+              {users.map(user => {
+                const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+                return (
+                  <div key={user.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0" data-testid={`row-user-${user.id}`}>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                      {user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium" data-testid={`text-user-name-${user.id}`}>{user.name}</span>
+                        <Badge variant={appRoleBadgeVariant(user.appRole)} className="capitalize text-xs" data-testid={`badge-app-role-${user.id}`}>
+                          {user.appRole}
+                        </Badge>
+                        {isSuperAdmin && (
+                          <Badge variant="default" className="text-xs bg-amber-500 hover:bg-amber-500">
+                            <Crown className="h-3 w-3 mr-1" /> Super Admin
+                          </Badge>
+                        )}
+                        {!user.isActive && (
+                          <Badge variant="destructive" className="text-xs">Inactive</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {user.email}</span>
+                        {user.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {user.phone}</span>}
+                        <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {user.orgRole}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setPasswordUser({ id: user.id, name: user.name })}
+                        title="Set password"
+                        data-testid={`button-set-password-${user.id}`}
+                      >
+                        <Key className="h-4 w-4" />
+                      </Button>
+                      {!isSuperAdmin && (
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={`toggle-${user.id}`} className="text-xs text-muted-foreground sr-only">Active</Label>
+                          <Switch
+                            id={`toggle-${user.id}`}
+                            checked={user.isActive}
+                            onCheckedChange={(checked) => toggleMutation.mutate({ id: user.id, isActive: checked })}
+                            data-testid={`switch-active-${user.id}`}
+                          />
+                        </div>
                       )}
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {user.email}</span>
-                      {user.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {user.phone}</span>}
-                      <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {user.orgRole}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`toggle-${user.id}`} className="text-xs text-muted-foreground sr-only">Active</Label>
-                      <Switch
-                        id={`toggle-${user.id}`}
-                        checked={user.isActive}
-                        onCheckedChange={(checked) => toggleMutation.mutate({ id: user.id, isActive: checked })}
-                        data-testid={`switch-active-${user.id}`}
-                      />
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} data-testid={`button-edit-user-${user.id}`}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" data-testid={`button-delete-user-${user.id}`}>
+                      {isSuperAdmin && (
+                        <div className="flex items-center gap-2 opacity-50" title="Super admin is always active">
+                          <Switch checked={true} disabled />
+                        </div>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} data-testid={`button-edit-user-${user.id}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {!isSuperAdmin ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" data-testid={`button-delete-user-${user.id}`}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove User</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove {user.name} from the user list? They will no longer be able to log in or sign up.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteMutation.mutate(user.id)} data-testid={`button-confirm-delete-${user.id}`}>
+                                Remove
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <Button variant="ghost" size="icon" disabled className="opacity-30" title="Super admin cannot be removed">
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove User</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to remove {user.name} from the user list? They will no longer be able to log in or sign up.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMutation.mutate(user.id)} data-testid={`button-confirm-delete-${user.id}`}>
-                            Remove
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
       </Card>
 
       <UserFormDialog user={editingUser} open={dialogOpen} onOpenChange={setDialogOpen} />
+      {passwordUser && (
+        <SetPasswordDialog
+          userId={passwordUser.id}
+          userName={passwordUser.name}
+          open={!!passwordUser}
+          onOpenChange={(open) => { if (!open) setPasswordUser(null); }}
+        />
+      )}
     </div>
   );
 }

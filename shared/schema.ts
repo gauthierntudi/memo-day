@@ -294,18 +294,21 @@ export const INVENTORY_STATUS = [
   "Overstocked",
 ] as const;
 
+export const SUPER_ADMIN_EMAIL = "memdt@merinyaal.com";
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone"),
+  password: text("password"),
   orgRole: text("org_role").notNull(),
   appRole: text("app_role").notNull().default("user"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, password: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 

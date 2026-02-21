@@ -1,10 +1,25 @@
 import { db } from "./db";
-import { projects, dailyReports, weeklyPlans, users } from "@shared/schema";
-import { sql } from "drizzle-orm";
+import { projects, dailyReports, weeklyPlans, users, SUPER_ADMIN_EMAIL } from "@shared/schema";
+import { sql, eq } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 export async function seedDatabase() {
+  const superAdmin = await db.select().from(users).where(eq(users.email, SUPER_ADMIN_EMAIL));
+  if (superAdmin.length === 0) {
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    await db.insert(users).values({
+      name: "Super Admin",
+      email: SUPER_ADMIN_EMAIL,
+      phone: null,
+      password: hashedPassword,
+      orgRole: "Director",
+      appRole: "admin",
+      isActive: true,
+    });
+  }
+
   const existingUsers = await db.select().from(users);
-  if (existingUsers.length === 0) {
+  if (existingUsers.length <= 1) {
     await db.insert(users).values([
       { name: "Ahmed Al Mansoori", email: "ahmed@memconstruction.ae", phone: "+971 50 123 4567", orgRole: "Project Manager", appRole: "admin", isActive: true },
       { name: "Khalid Bin Rashid", email: "khalid@memconstruction.ae", phone: "+971 55 234 5678", orgRole: "Site Engineer", appRole: "user", isActive: true },

@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import DailyReports from "@/pages/daily-reports";
@@ -17,7 +18,9 @@ import WeeklyPlanForm from "@/pages/weekly-plan-form";
 import WeeklyReport from "@/pages/weekly-report";
 import ExecutiveSummary from "@/pages/executive-summary";
 import SettingsPage from "@/pages/settings";
+import LoginPage from "@/pages/login";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2 } from "lucide-react";
 
 function Router() {
   return (
@@ -43,25 +46,47 @@ const sidebarStyle = {
   "--sidebar-width-icon": "3rem",
 };
 
+function AuthenticatedApp() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  return (
+    <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="flex items-center justify-between gap-2 p-2 border-b shrink-0">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <ThemeToggle />
+          </header>
+          <ScrollArea className="flex-1">
+            <Router />
+          </ScrollArea>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <SidebarProvider style={sidebarStyle as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1 min-w-0">
-                <header className="flex items-center justify-between gap-2 p-2 border-b shrink-0">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <ThemeToggle />
-                </header>
-                <ScrollArea className="flex-1">
-                  <Router />
-                </ScrollArea>
-              </div>
-            </div>
-          </SidebarProvider>
+          <AuthProvider>
+            <AuthenticatedApp />
+          </AuthProvider>
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

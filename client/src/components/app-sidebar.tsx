@@ -7,6 +7,7 @@ import {
   FileText,
   Building2,
   Settings,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -20,6 +21,8 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -36,6 +39,7 @@ const managementItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
 
   return (
     <Sidebar>
@@ -92,7 +96,18 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-3">
+        {user && (
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={logout} className="shrink-0" data-testid="button-logout">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
         <p className="text-xs text-muted-foreground text-center">
           DAY ON SITE v1.0
         </p>

@@ -43,7 +43,7 @@ export function AppSidebar() {
             <Building2 className="h-4 w-4 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold tracking-tight">MEM ERP</h2>
+            <h2 className="text-sm font-semibold tracking-tight">DAY ON SITE</h2>
             <p className="text-xs text-muted-foreground">Construction Reports</p>
           </div>
         </div>
@@ -92,7 +92,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         <p className="text-xs text-muted-foreground text-center">
-          MEM ERP v1.0
+          DAY ON SITE v1.0
         </p>
       </SidebarFooter>
     </Sidebar>

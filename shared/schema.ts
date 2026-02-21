@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, date, timestamp, boolean, jsonb, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, date, timestamp, boolean, jsonb, serial, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+export const CLIENT_TYPES = ["Own", "Group", "Non-group"] as const;
 
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
@@ -9,8 +11,16 @@ export const projects = pgTable("projects", {
   code: text("code").notNull().unique(),
   location: text("location").notNull(),
   client: text("client").notNull(),
+  clientType: text("client_type").notNull().default("Own"),
   contractor: text("contractor").notNull(),
   projectManager: text("project_manager"),
+  developmentManager: text("development_manager"),
+  scopeOfWork: text("scope_of_work"),
+  startDate: text("start_date"),
+  plannedDeliveryDate: text("planned_delivery_date"),
+  updatedDeliveryDate: text("updated_delivery_date"),
+  projectValue: real("project_value"),
+  overallProgress: real("overall_progress").default(0),
   status: text("status").notNull().default("active"),
 });
 

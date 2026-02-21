@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
   DialogContent,
@@ -41,16 +44,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, TrendingUp } from "lucide-react";
 import type { Project, User } from "@shared/schema";
+import { CLIENT_TYPES } from "@shared/schema";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ProjectFormData {
   name: string;
   code: string;
   location: string;
   client: string;
+  clientType: string;
   contractor: string;
   projectManager: string | null;
+  developmentManager: string | null;
+  scopeOfWork: string | null;
+  startDate: string | null;
+  plannedDeliveryDate: string | null;
+  updatedDeliveryDate: string | null;
+  projectValue: number | null;
+  overallProgress: number | null;
   status: string;
 }
 
@@ -59,8 +72,16 @@ const emptyForm: ProjectFormData = {
   code: "",
   location: "",
   client: "",
+  clientType: "Own",
   contractor: "",
   projectManager: null,
+  developmentManager: null,
+  scopeOfWork: null,
+  startDate: null,
+  plannedDeliveryDate: null,
+  updatedDeliveryDate: null,
+  projectValue: null,
+  overallProgress: 0,
   status: "active",
 };
 
@@ -87,8 +108,16 @@ function ProjectFormDialog({
               code: project.code,
               location: project.location,
               client: project.client,
+              clientType: project.clientType || "Own",
               contractor: project.contractor,
               projectManager: project.projectManager || null,
+              developmentManager: project.developmentManager || null,
+              scopeOfWork: project.scopeOfWork || null,
+              startDate: project.startDate || null,
+              plannedDeliveryDate: project.plannedDeliveryDate || null,
+              updatedDeliveryDate: project.updatedDeliveryDate || null,
+              projectValue: project.projectValue || null,
+              overallProgress: project.overallProgress || 0,
               status: project.status,
             }
           : { ...emptyForm }
@@ -98,6 +127,7 @@ function ProjectFormDialog({
 
   const { data: users } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const activeUsers = users?.filter(u => u.isActive) || [];
+  const devManagers = activeUsers.filter(u => u.orgRole === "Development Manager");
 
   const createMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
@@ -142,22 +172,34 @@ function ProjectFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" data-testid="dialog-project-form">
+      <DialogContent className="sm:max-w-lg max-h-[90vh]" data-testid="dialog-project-form">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Project" : "Add New Project"}</DialogTitle>
           <DialogDescription>
             {isEditing ? "Update the project details below." : "Fill in the details to create a new project."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <ScrollArea className="max-h-[65vh] pr-4">
+        <form onSubmit={handleSubmit} className="space-y-4" id="project-form">
           <div className="space-y-2">
             <Label htmlFor="name">Project Name</Label>
             <Input id="name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required data-testid="input-project-name" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="code">Project Code</Label>
-            <Input id="code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="e.g. PRJ-001" data-testid="input-project-code" disabled={isEditing} />
-            {isEditing && <p className="text-xs text-muted-foreground">Project code cannot be changed.</p>}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="code">Project Code</Label>
+              <Input id="code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="e.g. PRJ-001" data-testid="input-project-code" disabled={isEditing} />
+              {isEditing && <p className="text-xs text-muted-foreground">Cannot be changed.</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Client Type</Label>
+              <Select value={form.clientType} onValueChange={v => setForm(f => ({ ...f, clientType: v }))}>
+                <SelectTrigger data-testid="select-client-type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CLIENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="location">Location</Label>
@@ -172,18 +214,60 @@ function ProjectFormDialog({
             <Input id="contractor" value={form.contractor} onChange={e => setForm(f => ({ ...f, contractor: e.target.value }))} required data-testid="input-project-contractor" />
           </div>
           <div className="space-y-2">
-            <Label>Project Manager</Label>
-            <Select value={form.projectManager || "__none__"} onValueChange={v => setForm(f => ({ ...f, projectManager: v === "__none__" ? null : v }))}>
-              <SelectTrigger data-testid="select-project-manager">
-                <SelectValue placeholder="Select project manager" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">No manager assigned</SelectItem>
-                {activeUsers.map(u => (
-                  <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Scope of Work</Label>
+            <Textarea value={form.scopeOfWork || ""} onChange={e => setForm(f => ({ ...f, scopeOfWork: e.target.value || null }))} placeholder="Describe the project scope..." className="min-h-[60px]" data-testid="input-scope-of-work" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Project Manager</Label>
+              <Select value={form.projectManager || "__none__"} onValueChange={v => setForm(f => ({ ...f, projectManager: v === "__none__" ? null : v }))}>
+                <SelectTrigger data-testid="select-project-manager">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not assigned</SelectItem>
+                  {activeUsers.map(u => (
+                    <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Development Manager</Label>
+              <Select value={form.developmentManager || "__none__"} onValueChange={v => setForm(f => ({ ...f, developmentManager: v === "__none__" ? null : v }))}>
+                <SelectTrigger data-testid="select-development-manager">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not assigned</SelectItem>
+                  {activeUsers.map(u => (
+                    <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label>Start Date</Label>
+              <Input type="date" value={form.startDate || ""} onChange={e => setForm(f => ({ ...f, startDate: e.target.value || null }))} data-testid="input-start-date" />
+            </div>
+            <div className="space-y-2">
+              <Label>Planned Delivery</Label>
+              <Input type="date" value={form.plannedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, plannedDeliveryDate: e.target.value || null }))} data-testid="input-planned-delivery" />
+            </div>
+            <div className="space-y-2">
+              <Label>Updated Delivery</Label>
+              <Input type="date" value={form.updatedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, updatedDeliveryDate: e.target.value || null }))} data-testid="input-updated-delivery" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Project Value</Label>
+            <Input type="number" min={0} step={0.01} value={form.projectValue ?? ""} onChange={e => setForm(f => ({ ...f, projectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter project value" data-testid="input-project-value" />
+          </div>
+          <div className="space-y-2">
+            <Label>Overall Progress: {form.overallProgress ?? 0}%</Label>
+            <Slider value={[form.overallProgress ?? 0]} onValueChange={v => setForm(f => ({ ...f, overallProgress: v[0] }))} min={0} max={100} step={1} data-testid="slider-overall-progress" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
@@ -197,15 +281,16 @@ function ProjectFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" type="button" data-testid="button-cancel-project">Cancel</Button>
-            </DialogClose>
-            <Button type="submit" disabled={isPending} data-testid="button-submit-project">
-              {isPending ? "Saving..." : isEditing ? "Save Changes" : "Create Project"}
-            </Button>
-          </DialogFooter>
         </form>
+        </ScrollArea>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" type="button" data-testid="button-cancel-project">Cancel</Button>
+          </DialogClose>
+          <Button type="submit" form="project-form" disabled={isPending} data-testid="button-submit-project">
+            {isPending ? "Saving..." : isEditing ? "Save Changes" : "Create Project"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -266,6 +351,11 @@ export default function Projects() {
       case "closed": return "destructive" as const;
       default: return "secondary" as const;
     }
+  };
+
+  const formatCurrency = (value: number | null) => {
+    if (value === null || value === undefined) return "—";
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(value);
   };
 
   if (isLoading) {
@@ -353,7 +443,7 @@ export default function Projects() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-1 text-sm">
+                <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Code:</span>
                     <span className="font-medium">{project.code}</span>
@@ -365,6 +455,10 @@ export default function Projects() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Client:</span>
                     <span className="font-medium">{project.client}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Client Type:</span>
+                    <Badge variant="outline" className="text-xs">{project.clientType || "Own"}</Badge>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Contractor:</span>
@@ -379,6 +473,55 @@ export default function Projects() {
                         <span className="text-muted-foreground italic">Not assigned</span>
                       )}
                     </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Dev. Manager:</span>
+                    <span className="font-medium flex items-center gap-1">
+                      {project.developmentManager ? (
+                        <><UserCircle className="h-3.5 w-3.5" /> {project.developmentManager}</>
+                      ) : (
+                        <span className="text-muted-foreground italic">Not assigned</span>
+                      )}
+                    </span>
+                  </div>
+                  {project.scopeOfWork && (
+                    <div className="pt-1">
+                      <span className="text-muted-foreground text-xs">Scope of Work:</span>
+                      <p className="text-xs mt-0.5 line-clamp-2">{project.scopeOfWork}</p>
+                    </div>
+                  )}
+                  <div className="pt-1.5 border-t mt-2 space-y-1.5">
+                    {project.startDate && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Start:</span>
+                        <span className="font-medium">{project.startDate}</span>
+                      </div>
+                    )}
+                    {project.plannedDeliveryDate && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Planned:</span>
+                        <span className="font-medium">{project.plannedDeliveryDate}</span>
+                      </div>
+                    )}
+                    {project.updatedDeliveryDate && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Updated:</span>
+                        <span className="font-medium">{project.updatedDeliveryDate}</span>
+                      </div>
+                    )}
+                    {project.projectValue !== null && project.projectValue !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Value:</span>
+                        <span className="font-medium">{formatCurrency(project.projectValue)}</span>
+                      </div>
+                    )}
+                    <div className="pt-1">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Progress:</span>
+                        <span className="font-medium">{project.overallProgress ?? 0}%</span>
+                      </div>
+                      <Progress value={project.overallProgress ?? 0} className="h-1.5" />
+                    </div>
                   </div>
                 </div>
               </CardContent>

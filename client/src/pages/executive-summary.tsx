@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -26,7 +27,10 @@ import {
   Target,
   CheckCircle,
   XCircle,
+  Download,
+  Loader2,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import {
   BarChart,
   Bar,
@@ -44,10 +48,52 @@ import type { DailyReport, Project, WeeklyPlan } from "@shared/schema";
 export default function ExecutiveSummary() {
   const [period, setPeriod] = useState("weekly");
   const [selectedProject, setSelectedProject] = useState("all");
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
   const { data: reports, isLoading } = useQuery<DailyReport[]>({ queryKey: ["/api/daily-reports"] });
   const { data: plans } = useQuery<WeeklyPlan[]>({ queryKey: ["/api/weekly-plans"] });
+
+  const generatePdf = useCallback(async () => {
+    if (!contentRef.current) return;
+    setGeneratingPdf(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 10;
+      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+      heightLeft -= (pdfHeight - 20);
+      while (heightLeft > 0) {
+        position = -(imgHeight - heightLeft) + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+        heightLeft -= (pdfHeight - 20);
+      }
+      const projectName = selectedProject === "all" ? "All-Projects" : (projects?.find(p => p.id === Number(selectedProject))?.name || "Project");
+      const filename = `Executive-Summary-${projectName}-${period}-${new Date().toISOString().split("T")[0]}.pdf`;
+      pdf.save(filename);
+      toast({ title: "PDF downloaded successfully" });
+    } catch (err) {
+      toast({ title: "Failed to generate PDF", variant: "destructive" });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }, [period, selectedProject, projects, toast]);
 
   if (isLoading) {
     return (
@@ -148,7 +194,7 @@ export default function ExecutiveSummary() {
           <h1 className="text-2xl font-bold tracking-tight">Executive Summary</h1>
           <p className="text-sm text-muted-foreground">Comprehensive overview of construction operations</p>
         </div>
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <Select value={selectedProject} onValueChange={setSelectedProject}>
             <SelectTrigger className="w-[180px]" data-testid="select-exec-project">
               <SelectValue placeholder="Project" />
@@ -158,9 +204,14 @@ export default function ExecutiveSummary() {
               {projects?.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Button onClick={generatePdf} disabled={generatingPdf} data-testid="button-generate-pdf">
+            {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {generatingPdf ? "Generating..." : "Export PDF"}
+          </Button>
         </div>
       </div>
 
+      <div ref={contentRef}>
       <Tabs value={period} onValueChange={setPeriod}>
         <TabsList>
           <TabsTrigger value="weekly" data-testid="tab-weekly">Weekly</TabsTrigger>
@@ -412,6 +463,7 @@ export default function ExecutiveSummary() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

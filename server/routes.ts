@@ -58,7 +58,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  app.use("/uploads", express.static(uploadsDir));
+  app.use("/uploads", requireAuth, express.static(uploadsDir));
 
   app.post("/api/uploads", requireAuth, upload.array("photos", 10), (req, res) => {
     const files = req.files as Express.Multer.File[];

@@ -639,7 +639,14 @@ export default function DailyReportForm() {
                               <button
                                 type="button"
                                 className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => {
+                                onClick={async () => {
+                                  try {
+                                    await fetch("/api/uploads", {
+                                      method: "DELETE",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ url: photo }),
+                                    });
+                                  } catch {}
                                   const updated = [...safetyIncidents];
                                   updated[i] = { ...updated[i], photos: (updated[i].photos || []).filter((_, idx) => idx !== pi) };
                                   setSafetyIncidents(updated);

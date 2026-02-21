@@ -66,13 +66,21 @@ export default function WeeklyPlans() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="text-sm font-semibold">Week {plan.weekNumber}</span>
-                          <Badge variant={plan.status === "approved" ? "default" : "secondary"} className="text-xs">{plan.status}</Badge>
+                          <Badge
+                            variant={plan.status === "approved" ? "default" : plan.status === "rejected" ? "destructive" : plan.status === "submitted" ? "secondary" : "outline"}
+                            className={`text-xs ${plan.status === "approved" ? "bg-green-600" : ""}`}
+                            data-testid={`badge-plan-status-${plan.id}`}
+                          >
+                            {plan.status.charAt(0).toUpperCase() + plan.status.slice(1)}
+                          </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">{project?.name || "—"}</p>
                         <div className="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                           <span>{plan.weekStartDate} - {plan.weekEndDate}</span>
                           <span>{activities?.length || 0} activities</span>
                           <span>{totalPlannedWorkers} workers planned</span>
+                          {plan.submittedBy && <span>Submitted by: {plan.submittedBy}</span>}
+                          {plan.approvedBy && <span>Approved by: {plan.approvedBy}</span>}
                         </div>
                       </div>
                       <Button variant="ghost" size="icon">

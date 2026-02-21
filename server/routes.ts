@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, SUPER_ADMIN_EMAIL } from "@shared/schema";
+import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, weeklyPlans, SUPER_ADMIN_EMAIL } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
@@ -269,6 +269,83 @@ export async function registerRoutes(
       res.json(plan);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
+    }
+  });
+
+  app.post("/api/weekly-plans/:id/submit", requireAuth, async (req, res) => {
+    try {
+      const plan = await storage.getWeeklyPlan(Number(req.params.id));
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+      if (plan.status !== "draft" && plan.status !== "rejected") {
+        return res.status(400).json({ message: "Only draft or rejected plans can be submitted" });
+      }
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      const updated = await storage.updateWeeklyPlan(plan.id, {
+        status: "submitted",
+        submittedBy: user.name,
+        rejectionReason: null,
+        approvedBy: null,
+      });
+      if (updated) {
+        await db.update(weeklyPlans).set({ submittedAt: new Date(), approvedAt: null }).where(eq(weeklyPlans.id, plan.id));
+        const final = await storage.getWeeklyPlan(plan.id);
+        return res.json(final);
+      }
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(500).json({ message: (err as Error).message });
+    }
+  });
+
+  app.post("/api/weekly-plans/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      if (user.orgRole !== "Development Manager") {
+        return res.status(403).json({ message: "Only Development Managers can approve weekly plans" });
+      }
+      const plan = await storage.getWeeklyPlan(Number(req.params.id));
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+      if (plan.status !== "submitted") {
+        return res.status(400).json({ message: "Only submitted plans can be approved" });
+      }
+      const updated = await storage.updateWeeklyPlan(plan.id, {
+        status: "approved",
+        approvedBy: user.name,
+      });
+      if (updated) {
+        await db.update(weeklyPlans).set({ approvedAt: new Date() }).where(eq(weeklyPlans.id, plan.id));
+        const final = await storage.getWeeklyPlan(plan.id);
+        return res.json(final);
+      }
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(500).json({ message: (err as Error).message });
+    }
+  });
+
+  app.post("/api/weekly-plans/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      if (user.orgRole !== "Development Manager") {
+        return res.status(403).json({ message: "Only Development Managers can reject weekly plans" });
+      }
+      const plan = await storage.getWeeklyPlan(Number(req.params.id));
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+      if (plan.status !== "submitted") {
+        return res.status(400).json({ message: "Only submitted plans can be rejected" });
+      }
+      const { reason } = req.body;
+      const updated = await storage.updateWeeklyPlan(plan.id, {
+        status: "rejected",
+        rejectionReason: reason || "No reason provided",
+        approvedBy: null,
+      });
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(500).json({ message: (err as Error).message });
     }
   });
 

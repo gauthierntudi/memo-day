@@ -70,10 +70,15 @@ export const weeklyPlans = pgTable("weekly_plans", {
   milestones: jsonb("milestones").notNull().default(sql`'[]'::jsonb`),
   notes: text("notes"),
   status: text("status").notNull().default("draft"),
+  submittedBy: text("submitted_by"),
+  submittedAt: timestamp("submitted_at"),
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertWeeklyPlanSchema = createInsertSchema(weeklyPlans).omit({ id: true, createdAt: true });
+export const insertWeeklyPlanSchema = createInsertSchema(weeklyPlans).omit({ id: true, createdAt: true, submittedAt: true, approvedAt: true });
 export type InsertWeeklyPlan = z.infer<typeof insertWeeklyPlanSchema>;
 export type WeeklyPlan = typeof weeklyPlans.$inferSelect;
 

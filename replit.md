@@ -37,7 +37,7 @@ shared/
 
 ## Key Features
 1. **Daily Reports**: Multi-section form with dropdowns, sliders, switches for weather, activities per trade, labour counts, subcontractors, safety/security incidents, equipment, materials, inventory
-2. **Approval Workflow**: Daily reports follow draft → submitted → approved/rejected flow. Project managers submit reports; Development Managers approve or reject with reason. Rejected reports can be re-submitted.
+2. **Approval Workflow**: Daily reports and weekly plans follow draft → submitted → approved/rejected flow. Planning engineers submit weekly plans; Development Managers approve or reject with reason. Rejected items can be re-submitted.
 3. **Weekly Plans**: Planned activities, labour targets, subcontractors, productivity metrics, milestones
 4. **Weekly Report**: Auto-generated from daily reports, compared against weekly plan with bar/pie charts
 5. **Executive Summary**: Aggregated views across weekly/monthly/quarterly with trend charts
@@ -53,6 +53,9 @@ shared/
 - `POST /api/daily-reports/:id/reject` - Reject report with reason (Development Manager only)
 - `GET/POST /api/weekly-plans` - List/create weekly plans
 - `GET/PATCH /api/weekly-plans/:id` - Get/update weekly plan
+- `POST /api/weekly-plans/:id/submit` - Submit plan for approval
+- `POST /api/weekly-plans/:id/approve` - Approve plan (Development Manager only)
+- `POST /api/weekly-plans/:id/reject` - Reject plan with reason (Development Manager only)
 
 ## Database
 PostgreSQL with tables: projects, daily_reports, weekly_plans, users

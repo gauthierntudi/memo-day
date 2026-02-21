@@ -48,6 +48,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Camera,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import type { Project, DailyReport, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem } from "@shared/schema";
@@ -56,7 +58,7 @@ import { TRADES, WEATHER_CONDITIONS, EQUIPMENT_TYPES, EQUIPMENT_STATUS, INCIDENT
 const emptyActivity: WorkActivity = { trade: "", description: "", location: "", percentComplete: 0, status: "In Progress" };
 const emptyLabour: LabourEntry = { trade: "", count: 0, hours: 8 };
 const emptySub: SubcontractorEntry = { company: "", specialty: "", workersCount: 0, workDescription: "" };
-const emptySafety: SafetyIncident = { type: "", severity: "Low", description: "", actionTaken: "", reportedBy: "" };
+const emptySafety: SafetyIncident = { type: "", severity: "Low", description: "", actionTaken: "", reportedBy: "", photos: [] };
 const emptySecurity: SecurityIncident = { type: "", description: "", actionTaken: "", reportedBy: "" };
 const emptyEquipment: EquipmentEntry = { name: "", type: "", status: "Operational", hoursUsed: 0, operator: "" };
 const emptyMaterialIn: MaterialEntry = { name: "", unit: "", quantity: 0, supplier: "", deliveryNote: "" };
@@ -627,6 +629,61 @@ export default function DailyReportForm() {
                       <div className="space-y-1">
                         <Label className="text-xs">Action Taken</Label>
                         <Textarea value={inc.actionTaken} onChange={e => setSafetyIncidents(a => updateArrayItem(a, i, "actionTaken", e.target.value))} className="min-h-[50px]" data-testid={`input-safety-action-${i}`} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs flex items-center gap-1"><Camera className="h-3 w-3" /> Photos</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {(inc.photos || []).map((photo, pi) => (
+                            <div key={pi} className="relative group w-20 h-20 rounded-md overflow-hidden border">
+                              <img src={photo} alt={`Safety photo ${pi + 1}`} className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => {
+                                  const updated = [...safetyIncidents];
+                                  updated[i] = { ...updated[i], photos: (updated[i].photos || []).filter((_, idx) => idx !== pi) };
+                                  setSafetyIncidents(updated);
+                                }}
+                                data-testid={`button-remove-safety-photo-${i}-${pi}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                          <label
+                            className="w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/60 transition-colors"
+                            data-testid={`button-upload-safety-photo-${i}`}
+                          >
+                            <Camera className="h-5 w-5 text-muted-foreground/50" />
+                            <span className="text-[10px] text-muted-foreground/50 mt-0.5">Add</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={async (e) => {
+                                const files = e.target.files;
+                                if (!files || files.length === 0) return;
+                                const formData = new FormData();
+                                Array.from(files).forEach(f => formData.append("photos", f));
+                                try {
+                                  const res = await fetch("/api/uploads", {
+                                    method: "POST",
+                                    body: formData,
+                                  });
+                                  if (!res.ok) throw new Error("Upload failed");
+                                  const data = await res.json();
+                                  const updated = [...safetyIncidents];
+                                  updated[i] = { ...updated[i], photos: [...(updated[i].photos || []), ...data.urls] };
+                                  setSafetyIncidents(updated);
+                                } catch {
+                                  toast({ title: "Upload failed", variant: "destructive" });
+                                }
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
                   ))}

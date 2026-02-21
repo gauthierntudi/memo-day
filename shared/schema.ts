@@ -109,6 +109,7 @@ export interface SafetyIncident {
   description: string;
   actionTaken: string;
   reportedBy: string;
+  photos?: string[];
 }
 
 export interface SecurityIncident {

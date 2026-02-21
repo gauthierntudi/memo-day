@@ -10,6 +10,7 @@ export const projects = pgTable("projects", {
   location: text("location").notNull(),
   client: text("client").notNull(),
   contractor: text("contractor").notNull(),
+  projectManager: text("project_manager"),
   status: text("status").notNull().default("active"),
 });
 

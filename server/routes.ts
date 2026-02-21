@@ -106,6 +106,23 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/projects/:id", requireAuth, async (req, res) => {
+    try {
+      const partial = insertProjectSchema.partial().parse(req.body);
+      const project = await storage.updateProject(Number(req.params.id), partial);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      res.json(project);
+    } catch (err: unknown) {
+      res.status(400).json({ message: handleZodError(err) });
+    }
+  });
+
+  app.delete("/api/projects/:id", requireAuth, async (req, res) => {
+    const deleted = await storage.deleteProject(Number(req.params.id));
+    if (!deleted) return res.status(404).json({ message: "Project not found" });
+    res.json({ message: "Project deleted" });
+  });
+
   app.get("/api/daily-reports", requireAuth, async (req, res) => {
     const projectId = req.query.projectId ? Number(req.query.projectId) : undefined;
     const startDate = req.query.startDate as string | undefined;
@@ -183,7 +200,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/users/:id", requireAuth, async (req, res) => {
-    const user = await storage.getUser(req.params.id);
+    const user = await storage.getUser(req.params.id as string);
     if (!user) return res.status(404).json({ message: "User not found" });
     const { password, ...rest } = user;
     res.json(rest);
@@ -204,7 +221,8 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id", requireAuth, async (req, res) => {
     try {
-      const targetUser = await storage.getUser(req.params.id);
+      const id = req.params.id as string;
+      const targetUser = await storage.getUser(id);
       if (!targetUser) return res.status(404).json({ message: "User not found" });
       if (targetUser.email === SUPER_ADMIN_EMAIL) {
         if (req.body.isActive === false) {
@@ -215,7 +233,7 @@ export async function registerRoutes(
         }
       }
       const partial = insertUserSchema.partial().parse(req.body);
-      const user = await storage.updateUser(req.params.id, partial);
+      const user = await storage.updateUser(id, partial);
       if (!user) return res.status(404).json({ message: "User not found" });
       const { password, ...rest } = user;
       res.json(rest);
@@ -225,25 +243,27 @@ export async function registerRoutes(
   });
 
   app.delete("/api/users/:id", requireAuth, async (req, res) => {
-    const targetUser = await storage.getUser(req.params.id);
+    const id = req.params.id as string;
+    const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
     if (targetUser.email === SUPER_ADMIN_EMAIL) {
       return res.status(403).json({ message: "Cannot delete the super admin" });
     }
-    const deleted = await storage.deleteUser(req.params.id);
+    const deleted = await storage.deleteUser(id);
     if (!deleted) return res.status(404).json({ message: "User not found" });
     res.json({ message: "User deleted" });
   });
 
   app.post("/api/users/:id/set-password", requireAuth, async (req, res) => {
+    const id = req.params.id as string;
     const { password: newPwd } = req.body;
     if (!newPwd || newPwd.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
-    const targetUser = await storage.getUser(req.params.id);
+    const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
     const hashed = await bcrypt.hash(newPwd, 10);
-    await storage.updateUserPassword(req.params.id, hashed);
+    await storage.updateUserPassword(id, hashed);
     res.json({ message: "Password set" });
   });
 

@@ -12,6 +12,8 @@ export interface IStorage {
   getProjects(): Promise<Project[]>;
   getProject(id: number): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: number): Promise<boolean>;
 
   getDailyReports(): Promise<DailyReport[]>;
   getDailyReport(id: number): Promise<DailyReport | undefined>;
@@ -45,6 +47,16 @@ export class DatabaseStorage implements IStorage {
   async createProject(project: InsertProject): Promise<Project> {
     const [created] = await db.insert(projects).values(project).returning();
     return created;
+  }
+
+  async updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined> {
+    const [updated] = await db.update(projects).set(project).where(eq(projects.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProject(id: number): Promise<boolean> {
+    const result = await db.delete(projects).where(eq(projects.id, id)).returning();
+    return result.length > 0;
   }
 
   async getDailyReports(): Promise<DailyReport[]> {

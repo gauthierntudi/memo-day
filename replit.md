@@ -37,15 +37,20 @@ shared/
 
 ## Key Features
 1. **Daily Reports**: Multi-section form with dropdowns, sliders, switches for weather, activities per trade, labour counts, subcontractors, safety/security incidents, equipment, materials, inventory
-2. **Weekly Plans**: Planned activities, labour targets, subcontractors, productivity metrics, milestones
-3. **Weekly Report**: Auto-generated from daily reports, compared against weekly plan with bar/pie charts
-4. **Executive Summary**: Aggregated views across weekly/monthly/quarterly with trend charts
-5. **Projects**: Project management with name, code, location, client, contractor
+2. **Approval Workflow**: Daily reports follow draft → submitted → approved/rejected flow. Project managers submit reports; Development Managers approve or reject with reason. Rejected reports can be re-submitted.
+3. **Weekly Plans**: Planned activities, labour targets, subcontractors, productivity metrics, milestones
+4. **Weekly Report**: Auto-generated from daily reports, compared against weekly plan with bar/pie charts
+5. **Executive Summary**: Aggregated views across weekly/monthly/quarterly with trend charts
+6. **Projects**: Project management with name, code, location, client, contractor, project manager assignment
 
 ## API Routes
 - `GET/POST /api/projects` - List/create projects
+- `GET/PATCH/DELETE /api/projects/:id` - Get/update/delete project
 - `GET/POST /api/daily-reports` - List/create daily reports
 - `GET/PATCH /api/daily-reports/:id` - Get/update daily report
+- `POST /api/daily-reports/:id/submit` - Submit report for approval
+- `POST /api/daily-reports/:id/approve` - Approve report (Development Manager only)
+- `POST /api/daily-reports/:id/reject` - Reject report with reason (Development Manager only)
 - `GET/POST /api/weekly-plans` - List/create weekly plans
 - `GET/PATCH /api/weekly-plans/:id` - Get/update weekly plan
 

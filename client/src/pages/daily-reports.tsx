@@ -80,6 +80,8 @@ export default function DailyReports() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
             <SelectItem value="submitted">Submitted</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
         <Select value={projectFilter} onValueChange={setProjectFilter}>
@@ -123,7 +125,13 @@ export default function DailyReports() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="text-sm font-semibold">{report.reportNumber}</span>
-                          <Badge variant={report.status === "submitted" ? "default" : "secondary"} className="text-xs">{report.status}</Badge>
+                          <Badge
+                            variant={report.status === "approved" ? "default" : report.status === "rejected" ? "destructive" : report.status === "submitted" ? "secondary" : "outline"}
+                            className={`text-xs ${report.status === "approved" ? "bg-green-600" : ""}`}
+                            data-testid={`badge-status-${report.id}`}
+                          >
+                            {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                          </Badge>
                           {safetyCount > 0 && (
                             <Badge variant="destructive" className="text-xs">{safetyCount} incident{safetyCount > 1 ? "s" : ""}</Badge>
                           )}
@@ -134,6 +142,8 @@ export default function DailyReports() {
                           <span>Workers: {totalWorkers}</span>
                           <span>Weather: {report.weatherCondition}</span>
                           <span>By: {report.preparedBy}</span>
+                          {report.submittedBy && <span>Submitted by: {report.submittedBy}</span>}
+                          {report.approvedBy && <span>Approved by: {report.approvedBy}</span>}
                         </div>
                       </div>
                       <Button variant="ghost" size="icon" data-testid={`button-view-report-${report.id}`}>

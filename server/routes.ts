@@ -1,7 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, SUPER_ADMIN_EMAIL } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, SUPER_ADMIN_EMAIL } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
@@ -158,6 +160,83 @@ export async function registerRoutes(
       res.json(report);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
+    }
+  });
+
+  app.post("/api/daily-reports/:id/submit", requireAuth, async (req, res) => {
+    try {
+      const report = await storage.getDailyReport(Number(req.params.id));
+      if (!report) return res.status(404).json({ message: "Report not found" });
+      if (report.status !== "draft" && report.status !== "rejected") {
+        return res.status(400).json({ message: "Only draft or rejected reports can be submitted" });
+      }
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      const updated = await storage.updateDailyReport(report.id, {
+        status: "submitted",
+        submittedBy: user.name,
+        rejectionReason: null,
+        approvedBy: null,
+      });
+      if (updated) {
+        await db.update(dailyReports).set({ submittedAt: new Date(), approvedAt: null }).where(eq(dailyReports.id, report.id));
+        const final = await storage.getDailyReport(report.id);
+        return res.json(final);
+      }
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(500).json({ message: (err as Error).message });
+    }
+  });
+
+  app.post("/api/daily-reports/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      if (user.orgRole !== "Development Manager") {
+        return res.status(403).json({ message: "Only Development Managers can approve reports" });
+      }
+      const report = await storage.getDailyReport(Number(req.params.id));
+      if (!report) return res.status(404).json({ message: "Report not found" });
+      if (report.status !== "submitted") {
+        return res.status(400).json({ message: "Only submitted reports can be approved" });
+      }
+      const updated = await storage.updateDailyReport(report.id, {
+        status: "approved",
+        approvedBy: user.name,
+      });
+      if (updated) {
+        await db.update(dailyReports).set({ approvedAt: new Date() }).where(eq(dailyReports.id, report.id));
+        const final = await storage.getDailyReport(report.id);
+        return res.json(final);
+      }
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(500).json({ message: (err as Error).message });
+    }
+  });
+
+  app.post("/api/daily-reports/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      if (user.orgRole !== "Development Manager") {
+        return res.status(403).json({ message: "Only Development Managers can reject reports" });
+      }
+      const report = await storage.getDailyReport(Number(req.params.id));
+      if (!report) return res.status(404).json({ message: "Report not found" });
+      if (report.status !== "submitted") {
+        return res.status(400).json({ message: "Only submitted reports can be rejected" });
+      }
+      const { reason } = req.body;
+      const updated = await storage.updateDailyReport(report.id, {
+        status: "rejected",
+        rejectionReason: reason || "No reason provided",
+        approvedBy: null,
+      });
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(500).json({ message: (err as Error).message });
     }
   });
 

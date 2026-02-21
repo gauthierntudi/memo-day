@@ -22,6 +22,13 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Cloud,
   Users,
   Hammer,
@@ -38,7 +45,11 @@ import {
   ArrowLeft,
   AlertTriangle,
   Truck,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import type { Project, DailyReport, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem } from "@shared/schema";
 import { TRADES, WEATHER_CONDITIONS, EQUIPMENT_TYPES, EQUIPMENT_STATUS, INCIDENT_TYPES, SEVERITY_LEVELS, SECURITY_INCIDENT_TYPES, CLEANING_STATUS, MATERIAL_UNITS, ACTIVITY_STATUS, INVENTORY_STATUS } from "@shared/schema";
 
@@ -57,6 +68,9 @@ export default function DailyReportForm() {
   const [, navigate] = useLocation();
   const params = useParams<{ id: string }>();
   const isEdit = params.id && params.id !== "new";
+  const { user } = useAuth();
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
   const { data: existing } = useQuery<DailyReport>({
@@ -165,6 +179,64 @@ export default function DailyReportForm() {
     },
   });
 
+  const invalidateReport = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/daily-reports"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/daily-reports", params.id] });
+  };
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/daily-reports/${params.id}/submit`);
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateReport();
+      toast({ title: "Report submitted for approval" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/daily-reports/${params.id}/approve`);
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateReport();
+      toast({ title: "Report approved" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      const res = await apiRequest("POST", `/api/daily-reports/${params.id}/reject`, { reason });
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateReport();
+      setRejectDialogOpen(false);
+      setRejectionReason("");
+      toast({ title: "Report rejected" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const reportStatus = existing?.status || "draft";
+  const isDraft = reportStatus === "draft";
+  const isSubmitted = reportStatus === "submitted";
+  const isApproved = reportStatus === "approved";
+  const isRejected = reportStatus === "rejected";
+  const isDevManager = user?.orgRole === "Development Manager";
+  const canEdit = !isEdit || isDraft || isRejected;
+  const canApprove = isDevManager && isSubmitted;
+
   function updateArrayItem<T>(arr: T[], index: number, field: keyof T, value: any): T[] {
     const next = [...arr];
     next[index] = { ...next[index], [field]: value };
@@ -182,14 +254,64 @@ export default function DailyReportForm() {
           <p className="text-sm text-muted-foreground">Fill in all sections of the construction daily report</p>
         </div>
         <div className="flex gap-2 shrink-0 flex-wrap">
-          <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-draft">
-            <Save className="mr-2 h-4 w-4" /> Save Draft
-          </Button>
-          <Button onClick={() => saveMutation.mutate("submitted")} disabled={saveMutation.isPending} data-testid="button-submit-report">
-            <Send className="mr-2 h-4 w-4" /> Submit
-          </Button>
+          {canEdit && (
+            <>
+              <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-draft">
+                <Save className="mr-2 h-4 w-4" /> Save Draft
+              </Button>
+              {isEdit && (isDraft || isRejected) && (
+                <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending} data-testid="button-submit-report">
+                  <Send className="mr-2 h-4 w-4" /> Submit for Approval
+                </Button>
+              )}
+              {!isEdit && (
+                <Button onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-submit-report">
+                  <Save className="mr-2 h-4 w-4" /> Create Report
+                </Button>
+              )}
+            </>
+          )}
+          {canApprove && (
+            <>
+              <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending} data-testid="button-approve-report">
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
+              </Button>
+              <Button variant="destructive" onClick={() => setRejectDialogOpen(true)} data-testid="button-reject-report">
+                <XCircle className="mr-2 h-4 w-4" /> Reject
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {isEdit && existing && (
+        <Card className={`border-l-4 ${isApproved ? "border-l-green-500 bg-green-50 dark:bg-green-950/20" : isSubmitted ? "border-l-blue-500 bg-blue-50 dark:bg-blue-950/20" : isRejected ? "border-l-red-500 bg-red-50 dark:bg-red-950/20" : "border-l-gray-300"}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              {isDraft && <Clock className="h-5 w-5 text-muted-foreground" />}
+              {isSubmitted && <Send className="h-5 w-5 text-blue-600" />}
+              {isApproved && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {isRejected && <XCircle className="h-5 w-5 text-red-600" />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={isApproved ? "default" : isSubmitted ? "secondary" : isRejected ? "destructive" : "outline"} data-testid="badge-report-status">
+                    {reportStatus.charAt(0).toUpperCase() + reportStatus.slice(1)}
+                  </Badge>
+                  {existing.submittedBy && (
+                    <span className="text-sm text-muted-foreground">Submitted by: <strong>{existing.submittedBy}</strong></span>
+                  )}
+                  {existing.approvedBy && (
+                    <span className="text-sm text-muted-foreground">Approved by: <strong>{existing.approvedBy}</strong></span>
+                  )}
+                </div>
+                {isRejected && existing.rejectionReason && (
+                  <p className="text-sm text-red-600 mt-1" data-testid="text-rejection-reason">Rejection reason: {existing.rejectionReason}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="general" className="w-full">
         <ScrollArea className="w-full">
@@ -829,13 +951,55 @@ export default function DailyReportForm() {
         <Button variant="outline" onClick={() => navigate("/daily-reports")} data-testid="button-cancel">
           Cancel
         </Button>
-        <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-draft-bottom">
-          <Save className="mr-2 h-4 w-4" /> Save as Draft
-        </Button>
-        <Button onClick={() => saveMutation.mutate("submitted")} disabled={saveMutation.isPending} data-testid="button-submit-bottom">
-          <Send className="mr-2 h-4 w-4" /> Submit Report
-        </Button>
+        {canEdit && (
+          <>
+            <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-draft-bottom">
+              <Save className="mr-2 h-4 w-4" /> Save as Draft
+            </Button>
+            {isEdit && (isDraft || isRejected) && (
+              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending} data-testid="button-submit-bottom">
+                <Send className="mr-2 h-4 w-4" /> Submit for Approval
+              </Button>
+            )}
+          </>
+        )}
+        {canApprove && (
+          <>
+            <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending} data-testid="button-approve-bottom">
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
+            </Button>
+            <Button variant="destructive" onClick={() => setRejectDialogOpen(true)} data-testid="button-reject-bottom">
+              <XCircle className="mr-2 h-4 w-4" /> Reject
+            </Button>
+          </>
+        )}
       </div>
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent data-testid="dialog-reject-report">
+          <DialogHeader>
+            <DialogTitle>Reject Report</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>Reason for rejection</Label>
+            <Textarea
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              placeholder="Provide the reason for rejecting this report..."
+              className="min-h-[100px]"
+              data-testid="input-rejection-reason"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)} data-testid="button-cancel-reject">
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => rejectMutation.mutate(rejectionReason)} disabled={rejectMutation.isPending} data-testid="button-confirm-reject">
+              Reject Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

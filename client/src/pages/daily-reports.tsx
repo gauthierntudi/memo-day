@@ -18,7 +18,7 @@ import type { DailyReport, Project } from "@shared/schema";
 import { usePermissions } from "@/hooks/use-permissions";
 
 export default function DailyReports() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, projectIds: allowedProjectIds, hasAllProjects } = usePermissions();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
@@ -94,7 +94,7 @@ export default function DailyReports() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
-            {projects?.map(p => (
+            {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).map(p => (
               <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
             ))}
           </SelectContent>

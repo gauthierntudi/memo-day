@@ -41,7 +41,7 @@ export default function WeeklyPlanForm() {
   const params = useParams<{ id: string }>();
   const isEdit = params.id && params.id !== "new";
   const { user } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, projectIds: allowedProjectIds, hasAllProjects } = usePermissions();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
@@ -257,7 +257,7 @@ export default function WeeklyPlanForm() {
               <Select value={String(projectId)} onValueChange={v => setProjectId(Number(v))} disabled={!canEdit}>
                 <SelectTrigger data-testid="select-plan-project"><SelectValue placeholder="Select project" /></SelectTrigger>
                 <SelectContent>
-                  {projects?.map(p => (
+                  {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).map(p => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>

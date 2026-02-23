@@ -72,7 +72,7 @@ export default function DailyReportForm() {
   const params = useParams<{ id: string }>();
   const isEdit = params.id && params.id !== "new";
   const { user } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, projectIds: allowedProjectIds, hasAllProjects } = usePermissions();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
@@ -349,7 +349,7 @@ export default function DailyReportForm() {
                   <Select value={String(projectId)} onValueChange={v => setProjectId(Number(v))}>
                     <SelectTrigger data-testid="select-project"><SelectValue placeholder="Select project" /></SelectTrigger>
                     <SelectContent>
-                      {projects?.map(p => (
+                      {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).map(p => (
                         <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.code})</SelectItem>
                       ))}
                     </SelectContent>

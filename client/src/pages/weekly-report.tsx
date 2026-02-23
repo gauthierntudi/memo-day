@@ -37,6 +37,7 @@ import {
   Cell,
 } from "recharts";
 import type { DailyReport, Project, WeeklyPlan } from "@shared/schema";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const CHART_COLORS = [
   "hsl(210, 85%, 42%)",
@@ -50,6 +51,7 @@ const CHART_COLORS = [
 ];
 
 export default function WeeklyReport() {
+  const { projectIds: allowedProjectIds, hasAllProjects } = usePermissions();
   const [selectedProject, setSelectedProject] = useState("all");
   const [selectedWeek, setSelectedWeek] = useState("all");
 
@@ -144,7 +146,7 @@ export default function WeeklyReport() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Projects</SelectItem>
-              {projects?.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+              {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={selectedWeek} onValueChange={setSelectedWeek}>

@@ -197,7 +197,11 @@ export async function registerRoutes(
     const projectId = req.query.projectId ? Number(req.query.projectId) : undefined;
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
+    const allowed = await getUserAllowedProjectIds(req.session.userId!);
     let reports = await storage.getDailyReports();
+    if (!allowed.allProjects) {
+      reports = reports.filter(r => allowed.projectIds.includes(r.projectId));
+    }
     if (projectId) reports = reports.filter(r => r.projectId === projectId);
     if (startDate) reports = reports.filter(r => r.reportDate >= startDate);
     if (endDate) reports = reports.filter(r => r.reportDate <= endDate);
@@ -207,12 +211,20 @@ export async function registerRoutes(
   app.get("/api/daily-reports/:id", requireAuth, async (req, res) => {
     const report = await storage.getDailyReport(Number(req.params.id));
     if (!report) return res.status(404).json({ message: "Report not found" });
+    const allowed = await getUserAllowedProjectIds(req.session.userId!);
+    if (!canAccessProject(allowed, report.projectId)) {
+      return res.status(403).json({ message: "You do not have access to this project" });
+    }
     res.json(report);
   });
 
   app.post("/api/daily-reports", requireAuth, async (req, res) => {
     try {
       const validated = insertDailyReportSchema.parse(req.body);
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, validated.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       const report = await storage.createDailyReport(validated);
       res.status(201).json(report);
     } catch (err: unknown) {
@@ -222,6 +234,12 @@ export async function registerRoutes(
 
   app.patch("/api/daily-reports/:id", requireAuth, async (req, res) => {
     try {
+      const existing = await storage.getDailyReport(Number(req.params.id));
+      if (!existing) return res.status(404).json({ message: "Report not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, existing.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       const partial = insertDailyReportSchema.partial().parse(req.body);
       const report = await storage.updateDailyReport(Number(req.params.id), partial);
       if (!report) return res.status(404).json({ message: "Report not found" });
@@ -235,6 +253,10 @@ export async function registerRoutes(
     try {
       const report = await storage.getDailyReport(Number(req.params.id));
       if (!report) return res.status(404).json({ message: "Report not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, report.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       if (report.status !== "draft" && report.status !== "rejected") {
         return res.status(400).json({ message: "Only draft or rejected reports can be submitted" });
       }
@@ -266,6 +288,10 @@ export async function registerRoutes(
       }
       const report = await storage.getDailyReport(Number(req.params.id));
       if (!report) return res.status(404).json({ message: "Report not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, report.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       if (report.status !== "submitted") {
         return res.status(400).json({ message: "Only submitted reports can be approved" });
       }
@@ -293,6 +319,10 @@ export async function registerRoutes(
       }
       const report = await storage.getDailyReport(Number(req.params.id));
       if (!report) return res.status(404).json({ message: "Report not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, report.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       if (report.status !== "submitted") {
         return res.status(400).json({ message: "Only submitted reports can be rejected" });
       }
@@ -308,20 +338,32 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/weekly-plans", requireAuth, async (_req, res) => {
-    const plans = await storage.getWeeklyPlans();
+  app.get("/api/weekly-plans", requireAuth, async (req, res) => {
+    const allowed = await getUserAllowedProjectIds(req.session.userId!);
+    let plans = await storage.getWeeklyPlans();
+    if (!allowed.allProjects) {
+      plans = plans.filter(p => allowed.projectIds.includes(p.projectId));
+    }
     res.json(plans);
   });
 
   app.get("/api/weekly-plans/:id", requireAuth, async (req, res) => {
     const plan = await storage.getWeeklyPlan(Number(req.params.id));
     if (!plan) return res.status(404).json({ message: "Plan not found" });
+    const allowed = await getUserAllowedProjectIds(req.session.userId!);
+    if (!canAccessProject(allowed, plan.projectId)) {
+      return res.status(403).json({ message: "You do not have access to this project" });
+    }
     res.json(plan);
   });
 
   app.post("/api/weekly-plans", requireAuth, async (req, res) => {
     try {
       const validated = insertWeeklyPlanSchema.parse(req.body);
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, validated.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       const plan = await storage.createWeeklyPlan(validated);
       res.status(201).json(plan);
     } catch (err: unknown) {
@@ -331,6 +373,12 @@ export async function registerRoutes(
 
   app.patch("/api/weekly-plans/:id", requireAuth, async (req, res) => {
     try {
+      const existing = await storage.getWeeklyPlan(Number(req.params.id));
+      if (!existing) return res.status(404).json({ message: "Plan not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, existing.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       const partial = insertWeeklyPlanSchema.partial().parse(req.body);
       const plan = await storage.updateWeeklyPlan(Number(req.params.id), partial);
       if (!plan) return res.status(404).json({ message: "Plan not found" });
@@ -344,6 +392,10 @@ export async function registerRoutes(
     try {
       const plan = await storage.getWeeklyPlan(Number(req.params.id));
       if (!plan) return res.status(404).json({ message: "Plan not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, plan.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       if (plan.status !== "draft" && plan.status !== "rejected") {
         return res.status(400).json({ message: "Only draft or rejected plans can be submitted" });
       }
@@ -375,6 +427,10 @@ export async function registerRoutes(
       }
       const plan = await storage.getWeeklyPlan(Number(req.params.id));
       if (!plan) return res.status(404).json({ message: "Plan not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, plan.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       if (plan.status !== "submitted") {
         return res.status(400).json({ message: "Only submitted plans can be approved" });
       }
@@ -402,6 +458,10 @@ export async function registerRoutes(
       }
       const plan = await storage.getWeeklyPlan(Number(req.params.id));
       if (!plan) return res.status(404).json({ message: "Plan not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, plan.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       if (plan.status !== "submitted") {
         return res.status(400).json({ message: "Only submitted plans can be rejected" });
       }
@@ -497,7 +557,7 @@ export async function registerRoutes(
     const rows = await storage.getRolePrivileges();
     const row = rows.find(r => r.orgRole === user.orgRole);
     const permissions = row ? (row.permissions as string[]) : [];
-    res.json({ permissions });
+    res.json({ permissions, projectIds: user.projectIds || [] });
   });
 
   app.get("/api/role-privileges", requireAuth, async (_req, res) => {

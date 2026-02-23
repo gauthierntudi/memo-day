@@ -130,6 +130,7 @@ function ProjectFormDialog({
 
   const { data: users } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const activeUsers = users?.filter(u => u.isActive) || [];
+  const projectManagers = activeUsers.filter(u => u.orgRole === "Project Manager");
   const devManagers = activeUsers.filter(u => u.orgRole === "Development Manager");
 
   const createMutation = useMutation({
@@ -229,7 +230,7 @@ function ProjectFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Not assigned</SelectItem>
-                  {activeUsers.map(u => (
+                  {projectManagers.map(u => (
                     <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -243,7 +244,7 @@ function ProjectFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Not assigned</SelectItem>
-                  {activeUsers.map(u => (
+                  {devManagers.map(u => (
                     <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>

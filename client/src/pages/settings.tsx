@@ -399,7 +399,7 @@ function PrivilegesPanel() {
                 {PERMISSIONS.map(perm => (
                   <TableHead key={perm} className="text-center px-2 min-w-[90px]">
                     <div className="flex flex-col items-center gap-1">
-                      <span className="text-xs font-medium leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
+                      <span className="text-sm font-medium leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
                       <Checkbox
                         checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
                         onCheckedChange={() => toggleAllForPermission(perm)}

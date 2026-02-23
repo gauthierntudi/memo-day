@@ -35,6 +35,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus,
@@ -534,6 +535,8 @@ function PrivilegesPanel() {
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canEditUsers = hasPermission("edit_users");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
   const [passwordUser, setPasswordUser] = useState<{ id: string; name: string } | null>(null);
@@ -612,11 +615,13 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
-      <div className="flex items-center justify-end">
-        <Button onClick={openAddDialog} data-testid="button-add-user">
-          <Plus className="h-4 w-4 mr-2" /> Add User
-        </Button>
-      </div>
+      {canEditUsers && (
+        <div className="flex items-center justify-end">
+          <Button onClick={openAddDialog} data-testid="button-add-user">
+            <Plus className="h-4 w-4 mr-2" /> Add User
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
@@ -706,60 +711,64 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setPasswordUser({ id: user.id, name: user.name })}
-                        title="Set password"
-                        data-testid={`button-set-password-${user.id}`}
-                      >
-                        <Key className="h-4 w-4" />
-                      </Button>
-                      {!isSuperAdmin && (
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor={`toggle-${user.id}`} className="text-xs text-muted-foreground sr-only">Active</Label>
-                          <Switch
-                            id={`toggle-${user.id}`}
-                            checked={user.isActive}
-                            onCheckedChange={(checked) => toggleMutation.mutate({ id: user.id, isActive: checked })}
-                            data-testid={`switch-active-${user.id}`}
-                          />
-                        </div>
-                      )}
-                      {isSuperAdmin && (
-                        <div className="flex items-center gap-2 opacity-50" title="Super admin is always active">
-                          <Switch checked={true} disabled />
-                        </div>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} data-testid={`button-edit-user-${user.id}`}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      {!isSuperAdmin ? (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" data-testid={`button-delete-user-${user.id}`}>
+                      {canEditUsers && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setPasswordUser({ id: user.id, name: user.name })}
+                            title="Set password"
+                            data-testid={`button-set-password-${user.id}`}
+                          >
+                            <Key className="h-4 w-4" />
+                          </Button>
+                          {!isSuperAdmin && (
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor={`toggle-${user.id}`} className="text-xs text-muted-foreground sr-only">Active</Label>
+                              <Switch
+                                id={`toggle-${user.id}`}
+                                checked={user.isActive}
+                                onCheckedChange={(checked) => toggleMutation.mutate({ id: user.id, isActive: checked })}
+                                data-testid={`switch-active-${user.id}`}
+                              />
+                            </div>
+                          )}
+                          {isSuperAdmin && (
+                            <div className="flex items-center gap-2 opacity-50" title="Super admin is always active">
+                              <Switch checked={true} disabled />
+                            </div>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} data-testid={`button-edit-user-${user.id}`}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {!isSuperAdmin ? (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" data-testid={`button-delete-user-${user.id}`}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remove User</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to remove {user.name} from the user list? They will no longer be able to log in or sign up.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteMutation.mutate(user.id)} data-testid={`button-confirm-delete-${user.id}`}>
+                                    Remove
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          ) : (
+                            <Button variant="ghost" size="icon" disabled className="opacity-30" title="Super admin cannot be removed">
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Remove User</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to remove {user.name} from the user list? They will no longer be able to log in or sign up.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(user.id)} data-testid={`button-confirm-delete-${user.id}`}>
-                                Remove
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      ) : (
-                        <Button variant="ghost" size="icon" disabled className="opacity-30" title="Super admin cannot be removed">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

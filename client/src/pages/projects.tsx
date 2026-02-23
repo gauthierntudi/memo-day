@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, TrendingUp } from "lucide-react";
 import type { Project, User } from "@shared/schema";
@@ -274,6 +275,8 @@ function ProjectFormDialog({
 
 export default function Projects() {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canEditProjects = hasPermission("edit_projects");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
 
@@ -363,10 +366,12 @@ export default function Projects() {
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">Manage your construction projects</p>
         </div>
-        <Button onClick={openAddDialog} data-testid="button-add-project">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Project
-        </Button>
+        {canEditProjects && (
+          <Button onClick={openAddDialog} data-testid="button-add-project">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Project
+          </Button>
+        )}
       </div>
 
       {!projects || projects.length === 0 ? (
@@ -388,44 +393,46 @@ export default function Projects() {
                     <Badge variant={statusBadgeVariant(project.status)} className="text-xs shrink-0 capitalize">
                       {project.status}
                     </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" data-testid={`button-project-menu-${project.id}`}>
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(project)} data-testid={`button-edit-project-${project.id}`}>
-                          <Pencil className="h-4 w-4 mr-2" /> Edit
-                        </DropdownMenuItem>
-                        {project.status !== "closed" && (
-                          <DropdownMenuItem onClick={() => closeMutation.mutate(project.id)} data-testid={`button-close-project-${project.id}`}>
-                            <CheckCircle2 className="h-4 w-4 mr-2" /> Close Project
+                    {canEditProjects && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" data-testid={`button-project-menu-${project.id}`}>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditDialog(project)} data-testid={`button-edit-project-${project.id}`}>
+                            <Pencil className="h-4 w-4 mr-2" /> Edit
                           </DropdownMenuItem>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive" data-testid={`button-delete-project-${project.id}`}>
-                              <Trash2 className="h-4 w-4 mr-2" /> Delete
+                          {project.status !== "closed" && (
+                            <DropdownMenuItem onClick={() => closeMutation.mutate(project.id)} data-testid={`button-close-project-${project.id}`}>
+                              <CheckCircle2 className="h-4 w-4 mr-2" /> Close Project
                             </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Project</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{project.name}"? This action cannot be undone and will remove all associated data.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(project.id)} data-testid={`button-confirm-delete-project-${project.id}`}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive" data-testid={`button-delete-project-${project.id}`}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{project.name}"? This action cannot be undone and will remove all associated data.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteMutation.mutate(project.id)} data-testid={`button-confirm-delete-project-${project.id}`}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
               </CardHeader>

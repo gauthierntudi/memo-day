@@ -359,6 +359,8 @@ export const PERMISSIONS = [
   "approve_reject_weekly_plan",
   "view_weekly_report",
   "view_executive_summary",
+  "edit_projects",
+  "edit_users",
 ] as const;
 
 export const PERMISSION_LABELS: Record<string, string> = {
@@ -375,6 +377,8 @@ export const PERMISSION_LABELS: Record<string, string> = {
   approve_reject_weekly_plan: "Approve / Reject Weekly Plan",
   view_weekly_report: "View Weekly Report",
   view_executive_summary: "View Executive Summary",
+  edit_projects: "Edit Project Info",
+  edit_users: "Edit User List",
 };
 
 export const rolePrivileges = pgTable("role_privileges", {

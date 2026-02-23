@@ -134,6 +134,39 @@ export async function registerRoutes(
     res.json({ id: user.id, name: user.name, email: user.email, appRole: user.appRole, orgRole: user.orgRole });
   });
 
+  app.post("/api/auth/register", async (req, res) => {
+    const { name, email, phone, password, orgRole } = req.body;
+    if (!name || !email || !password || !orgRole) {
+      return res.status(400).json({ message: "Name, email, password, and organization role are required" });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+    const existing = await storage.getUserByEmail(email);
+    if (existing) {
+      return res.status(409).json({ message: "An account with this email already exists" });
+    }
+    const { ORG_ROLES } = await import("@shared/schema");
+    if (!ORG_ROLES.includes(orgRole)) {
+      return res.status(400).json({ message: "Invalid organization role" });
+    }
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await storage.createUser({
+      name,
+      email,
+      phone: phone || null,
+      orgRole,
+      appRole: "user",
+      isActive: true,
+      projectIds: [],
+    });
+    await storage.updateUserPassword(user.id, hashed);
+    req.session.userId = user.id;
+    req.session.userEmail = user.email;
+    req.session.userRole = user.appRole;
+    res.status(201).json({ id: user.id, name: user.name, email: user.email, appRole: user.appRole, orgRole: user.orgRole });
+  });
+
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) return res.status(500).json({ message: "Logout failed" });

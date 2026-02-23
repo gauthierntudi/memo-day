@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -261,6 +261,11 @@ function PrivilegesPanel() {
 
   const [localPrivs, setLocalPrivs] = useState<Record<string, string[]>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [tableWidth, setTableWidth] = useState(0);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const syncing = useRef(false);
 
   useEffect(() => {
     if (privileges) {
@@ -268,6 +273,28 @@ function PrivilegesPanel() {
       setHasChanges(false);
     }
   }, [privileges]);
+
+  useEffect(() => {
+    if (tableRef.current) {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setTableWidth(entry.target.scrollWidth);
+        }
+      });
+      observer.observe(tableRef.current);
+      setTableWidth(tableRef.current.scrollWidth);
+      return () => observer.disconnect();
+    }
+  }, [localPrivs]);
+
+  const syncScroll = useCallback((source: 'top' | 'bottom') => {
+    if (syncing.current) return;
+    syncing.current = true;
+    const from = source === 'top' ? topScrollRef.current : bottomScrollRef.current;
+    const to = source === 'top' ? bottomScrollRef.current : topScrollRef.current;
+    if (from && to) to.scrollLeft = from.scrollLeft;
+    requestAnimationFrame(() => { syncing.current = false; });
+  }, []);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Record<string, string[]>) => {
@@ -348,19 +375,33 @@ function PrivilegesPanel() {
         </Button>
       </div>
 
-      <div className="overflow-x-auto -mx-6 px-6">
+      <div
+        ref={topScrollRef}
+        className="scrollbar-visible -mx-6 px-6"
+        onScroll={() => syncScroll('top')}
+        data-testid="privileges-top-scrollbar"
+      >
+        <div style={{ width: tableWidth, height: 1 }} />
+      </div>
+      <div
+        ref={bottomScrollRef}
+        className="scrollbar-visible -mx-6 px-6"
+        onScroll={() => syncScroll('bottom')}
+        data-testid="privileges-bottom-scrollbar"
+      >
+        <div ref={tableRef}>
         <Card className="min-w-fit">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-card z-10 min-w-[160px] font-semibold border-r">
+                  <TableHead className="sticky left-0 bg-card z-10 min-w-[160px] font-semibold text-sm border-r">
                     Organization Role
                   </TableHead>
                   {PERMISSIONS.map(perm => (
-                    <TableHead key={perm} className="text-center px-1 w-[80px]">
+                    <TableHead key={perm} className="text-center px-2 w-[90px]">
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
+                        <span className="text-xs font-medium leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
                         <Checkbox
                           checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
                           onCheckedChange={() => toggleAllForPermission(perm)}
@@ -384,11 +425,11 @@ function PrivilegesPanel() {
                             onCheckedChange={() => toggleAllForRole(role)}
                             data-testid={`checkbox-all-role-${role}`}
                           />
-                          <span className="text-xs whitespace-nowrap">{role}</span>
+                          <span className="text-sm whitespace-nowrap">{role}</span>
                         </div>
                       </TableCell>
                       {PERMISSIONS.map(perm => (
-                        <TableCell key={perm} className="text-center px-1">
+                        <TableCell key={perm} className="text-center px-2">
                           <Checkbox
                             checked={rolePerms.includes(perm)}
                             onCheckedChange={() => togglePermission(role, perm)}
@@ -403,6 +444,7 @@ function PrivilegesPanel() {
             </Table>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

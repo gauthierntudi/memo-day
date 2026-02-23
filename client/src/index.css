@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+.scrollbar-visible {
+  overflow-x: scroll !important;
+  scrollbar-width: auto;
+}
+.scrollbar-visible::-webkit-scrollbar {
+  height: 10px;
+}
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 5px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 5px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);

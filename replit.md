@@ -1,4 +1,4 @@
-# MEM ERP - Construction Daily Report System
+# MEM - DAY ON SITE - Construction Daily Report System
 
 ## Overview
 A comprehensive construction management application for collecting daily construction reports from multiple work sites. The system covers activities, weather, labour, subcontractors, safety/security incidents, cleaning, equipment, materials, and inventory tracking. It auto-generates weekly reports compared against weekly plans and provides executive summaries.

@@ -27,7 +27,7 @@ export default function LoginPage() {
               <HardHat className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold" data-testid="heading-login">DAY ON SITE</CardTitle>
+          <CardTitle className="text-2xl font-bold" data-testid="heading-login">MEM - DAY ON SITE</CardTitle>
           <CardDescription>Construction Daily Report System</CardDescription>
         </CardHeader>
         <CardContent>

@@ -385,19 +385,19 @@ function PrivilegesPanel() {
       </div>
       <div
         ref={bottomScrollRef}
-        className="scrollbar-visible w-full"
+        className="scrollbar-visible w-full overflow-auto max-h-[70vh] border rounded-md"
         onScroll={() => syncScroll('bottom')}
         data-testid="privileges-bottom-scrollbar"
       >
         <div ref={tableRef} className="w-fit">
           <Table className="table-fixed">
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-20">
               <TableRow>
-                <TableHead className="sticky left-0 bg-muted z-10 w-[220px] min-w-[220px] font-semibold text-sm border-r">
+                <TableHead className="sticky left-0 bg-muted z-30 w-[220px] min-w-[220px] font-semibold text-sm border-r">
                   Organization Role
                 </TableHead>
                 {PERMISSIONS.map(perm => (
-                  <TableHead key={perm} className="text-center px-2 w-[120px] min-w-[120px] max-w-[120px]">
+                  <TableHead key={perm} className="text-center px-2 w-[120px] min-w-[120px] max-w-[120px] bg-muted">
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-sm font-medium leading-tight text-center">{PERMISSION_LABELS[perm]}</span>
                       <Checkbox

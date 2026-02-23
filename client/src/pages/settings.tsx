@@ -384,13 +384,15 @@ function PrivilegesPanel() {
         <div style={{ width: tableWidth, height: 1 }} />
       </div>
       <div
-        ref={bottomScrollRef}
+        ref={(el) => {
+          (bottomScrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          (tableRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        }}
         className="scrollbar-visible w-full overflow-auto max-h-[70vh] border rounded-md"
         onScroll={() => syncScroll('bottom')}
         data-testid="privileges-bottom-scrollbar"
       >
-        <div ref={tableRef} className="w-fit">
-          <Table className="table-fixed">
+          <Table className="table-fixed w-auto">
             <TableHeader className="sticky top-0 z-20">
               <TableRow>
                 <TableHead className="sticky left-0 bg-muted z-30 w-[220px] min-w-[220px] font-semibold text-sm border-r">
@@ -440,7 +442,6 @@ function PrivilegesPanel() {
               })}
             </TableBody>
           </Table>
-        </div>
       </div>
     </div>
   );

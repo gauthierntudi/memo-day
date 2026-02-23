@@ -37,7 +37,8 @@ shared/
 
 ## Key Features
 1. **Daily Reports**: Multi-section form with dropdowns, sliders, switches for weather, activities per trade, labour counts, subcontractors, safety/security incidents, equipment, materials, inventory
-2. **Approval Workflow**: Daily reports and weekly plans follow draft → submitted → approved/rejected flow. Planning engineers submit weekly plans; Development Managers approve or reject with reason. Rejected items can be re-submitted.
+2. **Approval Workflow**: Daily reports and weekly plans follow draft → submitted → approved/rejected flow. Approval/rejection is permission-based via the privileges table. Rejected items can be re-submitted.
+7. **Role-Based Permissions**: Dynamic permissions system driven by the privileges table in Settings. Controls sidebar visibility, button activation, and route access. 13 permissions across 17 org roles. Changes to the privileges table are reflected immediately in the UI. Hook: `usePermissions()` from `@/hooks/use-permissions.tsx`. API: `GET /api/my-permissions`.
 3. **Weekly Plans**: Planned activities, labour targets, subcontractors, productivity metrics, milestones
 4. **Weekly Report**: Auto-generated from daily reports, compared against weekly plan with bar/pie charts
 5. **Executive Summary**: Aggregated views across weekly/monthly/quarterly with trend charts
@@ -56,6 +57,9 @@ shared/
 - `POST /api/weekly-plans/:id/submit` - Submit plan for approval
 - `POST /api/weekly-plans/:id/approve` - Approve plan (Development Manager only)
 - `POST /api/weekly-plans/:id/reject` - Reject plan with reason (Development Manager only)
+- `GET /api/my-permissions` - Get current user's permissions based on org role
+- `GET /api/role-privileges` - Get all role privileges matrix
+- `PUT /api/role-privileges` - Update role privileges matrix
 
 ## Database
 PostgreSQL with tables: projects, daily_reports, weekly_plans, users

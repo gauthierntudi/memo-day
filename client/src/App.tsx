@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import DailyReports from "@/pages/daily-reports";
@@ -20,21 +21,50 @@ import ExecutiveSummary from "@/pages/executive-summary";
 import SettingsPage from "@/pages/settings";
 import LoginPage from "@/pages/login";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import type { ComponentType } from "react";
+
+function AccessDenied() {
+  return (
+    <div className="p-6 flex items-center justify-center min-h-[60vh]">
+      <Card className="max-w-md w-full">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <ShieldAlert className="h-12 w-12 text-muted-foreground/40 mb-4" />
+          <h2 className="text-lg font-semibold mb-2">Access Denied</h2>
+          <p className="text-sm text-muted-foreground text-center">You do not have permission to access this page. Contact your administrator to update your privileges.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ProtectedRoute({ component: Component, permission }: { component: ComponentType; permission: string | null }) {
+  const { hasPermission, isLoading } = usePermissions();
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (permission && !hasPermission(permission)) return <AccessDenied />;
+  return <Component />;
+}
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/daily-reports" component={DailyReports} />
-      <Route path="/daily-reports/new" component={DailyReportForm} />
-      <Route path="/daily-reports/:id" component={DailyReportForm} />
+      <Route path="/">{() => <ProtectedRoute component={Dashboard} permission="view_dashboard" />}</Route>
+      <Route path="/daily-reports">{() => <ProtectedRoute component={DailyReports} permission="view_daily_report" />}</Route>
+      <Route path="/daily-reports/new">{() => <ProtectedRoute component={DailyReportForm} permission="view_daily_report" />}</Route>
+      <Route path="/daily-reports/:id">{() => <ProtectedRoute component={DailyReportForm} permission="view_daily_report" />}</Route>
       <Route path="/projects" component={Projects} />
-      <Route path="/weekly-plans" component={WeeklyPlans} />
-      <Route path="/weekly-plans/new" component={WeeklyPlanForm} />
-      <Route path="/weekly-plans/:id" component={WeeklyPlanForm} />
-      <Route path="/weekly-report" component={WeeklyReport} />
-      <Route path="/executive-summary" component={ExecutiveSummary} />
+      <Route path="/weekly-plans">{() => <ProtectedRoute component={WeeklyPlans} permission="view_weekly_plan" />}</Route>
+      <Route path="/weekly-plans/new">{() => <ProtectedRoute component={WeeklyPlanForm} permission="view_weekly_plan" />}</Route>
+      <Route path="/weekly-plans/:id">{() => <ProtectedRoute component={WeeklyPlanForm} permission="view_weekly_plan" />}</Route>
+      <Route path="/weekly-report">{() => <ProtectedRoute component={WeeklyReport} permission="view_weekly_report" />}</Route>
+      <Route path="/executive-summary">{() => <ProtectedRoute component={ExecutiveSummary} permission="view_executive_summary" />}</Route>
       <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>

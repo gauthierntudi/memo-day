@@ -15,8 +15,10 @@ import {
 import { Plus, ClipboardList, Search, Eye } from "lucide-react";
 import { useState } from "react";
 import type { DailyReport, Project } from "@shared/schema";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export default function DailyReports() {
+  const { hasPermission } = usePermissions();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
@@ -54,11 +56,13 @@ export default function DailyReports() {
           <h1 className="text-2xl font-bold tracking-tight">Daily Reports</h1>
           <p className="text-sm text-muted-foreground">{reports?.length || 0} reports total</p>
         </div>
-        <Link href="/daily-reports/new">
-          <Button data-testid="button-new-daily-report">
-            <Plus className="mr-2 h-4 w-4" /> New Report
-          </Button>
-        </Link>
+        {hasPermission("create_daily_report") && (
+          <Link href="/daily-reports/new">
+            <Button data-testid="button-new-daily-report">
+              <Plus className="mr-2 h-4 w-4" /> New Report
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="flex gap-3 flex-wrap">

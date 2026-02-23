@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, CalendarRange, Eye } from "lucide-react";
 import type { WeeklyPlan, Project } from "@shared/schema";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export default function WeeklyPlans() {
+  const { hasPermission } = usePermissions();
   const { data: plans, isLoading } = useQuery<WeeklyPlan[]>({
     queryKey: ["/api/weekly-plans"],
   });
@@ -33,11 +35,13 @@ export default function WeeklyPlans() {
           <h1 className="text-2xl font-bold tracking-tight">Weekly Plans</h1>
           <p className="text-sm text-muted-foreground">{plans?.length || 0} plans total</p>
         </div>
-        <Link href="/weekly-plans/new">
-          <Button data-testid="button-new-weekly-plan">
-            <Plus className="mr-2 h-4 w-4" /> New Weekly Plan
-          </Button>
-        </Link>
+        {hasPermission("create_weekly_plan") && (
+          <Link href="/weekly-plans/new">
+            <Button data-testid="button-new-weekly-plan">
+              <Plus className="mr-2 h-4 w-4" /> New Weekly Plan
+            </Button>
+          </Link>
+        )}
       </div>
 
       {sorted.length === 0 ? (
@@ -45,9 +49,11 @@ export default function WeeklyPlans() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <CalendarRange className="h-12 w-12 text-muted-foreground/40 mb-4" />
             <p className="text-muted-foreground mb-2">No weekly plans created yet</p>
-            <Link href="/weekly-plans/new">
-              <Button variant="outline" size="sm" className="mt-2">Create first plan</Button>
-            </Link>
+            {hasPermission("create_weekly_plan") && (
+              <Link href="/weekly-plans/new">
+                <Button variant="outline" size="sm" className="mt-2">Create first plan</Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : (

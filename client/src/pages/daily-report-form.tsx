@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Cloud,
   Users,
@@ -71,6 +72,7 @@ export default function DailyReportForm() {
   const params = useParams<{ id: string }>();
   const isEdit = params.id && params.id !== "new";
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
@@ -235,9 +237,12 @@ export default function DailyReportForm() {
   const isSubmitted = reportStatus === "submitted";
   const isApproved = reportStatus === "approved";
   const isRejected = reportStatus === "rejected";
-  const isDevManager = user?.orgRole === "Development Manager" || user?.orgRole === "Director";
-  const canEdit = !isEdit || isDraft || isRejected;
-  const canApprove = isDevManager && isSubmitted;
+  const canCreate = hasPermission("create_daily_report");
+  const canEditSave = hasPermission("edit_save_daily_report");
+  const canSubmit = hasPermission("submit_daily_report");
+  const canApproveReject = hasPermission("approve_reject_daily_report");
+  const canEdit = (isEdit ? canEditSave : canCreate) && (!isEdit || isDraft || isRejected);
+  const canApprove = canApproveReject && isSubmitted;
 
   function updateArrayItem<T>(arr: T[], index: number, field: keyof T, value: any): T[] {
     const next = [...arr];
@@ -261,7 +266,7 @@ export default function DailyReportForm() {
               <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-draft">
                 <Save className="mr-2 h-4 w-4" /> Save Draft
               </Button>
-              {isEdit && (isDraft || isRejected) && (
+              {isEdit && (isDraft || isRejected) && canSubmit && (
                 <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending} data-testid="button-submit-report">
                   <Send className="mr-2 h-4 w-4" /> Submit for Approval
                 </Button>
@@ -1020,7 +1025,7 @@ export default function DailyReportForm() {
             <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-draft-bottom">
               <Save className="mr-2 h-4 w-4" /> Save as Draft
             </Button>
-            {isEdit && (isDraft || isRejected) && (
+            {isEdit && (isDraft || isRejected) && canSubmit && (
               <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending} data-testid="button-submit-bottom">
                 <Send className="mr-2 h-4 w-4" /> Submit for Approval
               </Button>

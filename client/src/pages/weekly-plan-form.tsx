@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { ArrowLeft, Save, Send, Plus, Trash2, CalendarRange, Users, Target, Milestone as MilestoneIcon, CheckCircle2, XCircle, Clock } from "lucide-react";
 import type { Project, WeeklyPlan, PlannedActivity, PlannedLabour, PlannedSubcontractor, ProductivityTarget, Milestone } from "@shared/schema";
 import { TRADES, PRIORITY_LEVELS } from "@shared/schema";
@@ -40,6 +41,7 @@ export default function WeeklyPlanForm() {
   const params = useParams<{ id: string }>();
   const isEdit = params.id && params.id !== "new";
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
@@ -161,9 +163,12 @@ export default function WeeklyPlanForm() {
   const isSubmitted = planStatus === "submitted";
   const isApproved = planStatus === "approved";
   const isRejected = planStatus === "rejected";
-  const isDevManager = user?.orgRole === "Development Manager" || user?.orgRole === "Director";
-  const canEdit = !isEdit || isDraft || isRejected;
-  const canApprove = isDevManager && isSubmitted;
+  const canCreatePlan = hasPermission("create_weekly_plan");
+  const canEditSavePlan = hasPermission("edit_save_weekly_plan");
+  const canSubmitPlan = hasPermission("submit_weekly_plan");
+  const canApproveRejectPlan = hasPermission("approve_reject_weekly_plan");
+  const canEdit = (isEdit ? canEditSavePlan : canCreatePlan) && (!isEdit || isDraft || isRejected);
+  const canApprove = canApproveRejectPlan && isSubmitted;
 
   function updateArrayItem<T>(arr: T[], index: number, field: keyof T, value: any): T[] {
     const next = [...arr];
@@ -187,7 +192,7 @@ export default function WeeklyPlanForm() {
               <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-plan-draft">
                 <Save className="mr-2 h-4 w-4" /> Save Draft
               </Button>
-              {isEdit && (isDraft || isRejected) && (
+              {isEdit && (isDraft || isRejected) && canSubmitPlan && (
                 <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending} data-testid="button-submit-plan">
                   <Send className="mr-2 h-4 w-4" /> Submit for Approval
                 </Button>
@@ -484,7 +489,7 @@ export default function WeeklyPlanForm() {
             <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}>
               <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
-            {isEdit && (isDraft || isRejected) && (
+            {isEdit && (isDraft || isRejected) && canSubmitPlan && (
               <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
                 <Send className="mr-2 h-4 w-4" /> Submit for Approval
               </Button>

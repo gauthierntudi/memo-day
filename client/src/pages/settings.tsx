@@ -303,6 +303,7 @@ function PrivilegesPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/role-privileges"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-permissions"] });
       setHasChanges(false);
       toast({ title: "Privileges saved successfully" });
     },

@@ -477,6 +477,15 @@ export async function registerRoutes(
     res.json({ message: "Password set" });
   });
 
+  app.get("/api/my-permissions", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user) return res.status(401).json({ message: "Not authenticated" });
+    const rows = await storage.getRolePrivileges();
+    const row = rows.find(r => r.orgRole === user.orgRole);
+    const permissions = row ? (row.permissions as string[]) : [];
+    res.json({ permissions });
+  });
+
   app.get("/api/role-privileges", requireAuth, async (_req, res) => {
     const rows = await storage.getRolePrivileges();
     const map: Record<string, string[]> = {};

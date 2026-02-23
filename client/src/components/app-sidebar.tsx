@@ -23,23 +23,28 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const mainItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Daily Reports", url: "/daily-reports", icon: ClipboardList },
-  { title: "Weekly Plan", url: "/weekly-plans", icon: CalendarRange },
-  { title: "Weekly Report", url: "/weekly-report", icon: BarChart3 },
-  { title: "Executive Summary", url: "/executive-summary", icon: FileText },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "view_dashboard" },
+  { title: "Daily Reports", url: "/daily-reports", icon: ClipboardList, permission: "view_daily_report" },
+  { title: "Weekly Plan", url: "/weekly-plans", icon: CalendarRange, permission: "view_weekly_plan" },
+  { title: "Weekly Report", url: "/weekly-report", icon: BarChart3, permission: "view_weekly_report" },
+  { title: "Executive Summary", url: "/executive-summary", icon: FileText, permission: "view_executive_summary" },
 ];
 
 const managementItems = [
-  { title: "Projects", url: "/projects", icon: Building2 },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Projects", url: "/projects", icon: Building2, permission: null },
+  { title: "Settings", url: "/settings", icon: Settings, permission: null },
 ];
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { hasPermission } = usePermissions();
+
+  const visibleMainItems = mainItems.filter(item => !item.permission || hasPermission(item.permission));
+  const visibleMgmtItems = managementItems.filter(item => !item.permission || hasPermission(item.permission));
 
   return (
     <Sidebar>
@@ -55,46 +60,50 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    data-active={location === item.url || (item.url !== "/" && location.startsWith(item.url))}
-                  >
-                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {managementItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    data-active={location === item.url || location.startsWith(item.url)}
-                  >
-                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {visibleMainItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Main</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleMainItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      data-active={location === item.url || (item.url !== "/" && location.startsWith(item.url))}
+                    >
+                      <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        {visibleMgmtItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleMgmtItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      data-active={location === item.url || location.startsWith(item.url)}
+                    >
+                      <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-4 space-y-3">
         {user && (

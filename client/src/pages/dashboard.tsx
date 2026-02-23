@@ -16,6 +16,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import type { DailyReport, Project, WeeklyPlan } from "@shared/schema";
+import { usePermissions } from "@/hooks/use-permissions";
 
 function StatCard({ title, value, icon: Icon, description, color }: {
   title: string;
@@ -43,6 +44,7 @@ function StatCard({ title, value, icon: Icon, description, color }: {
 }
 
 export default function Dashboard() {
+  const { hasPermission } = usePermissions();
   const { data: projects, isLoading: loadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
@@ -88,12 +90,14 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">Construction site activity overview</p>
         </div>
-        <Link href="/daily-reports/new">
-          <Button data-testid="button-new-report">
-            <Plus className="mr-2 h-4 w-4" />
-            New Daily Report
-          </Button>
-        </Link>
+        {hasPermission("create_daily_report") && (
+          <Link href="/daily-reports/new">
+            <Button data-testid="button-new-report">
+              <Plus className="mr-2 h-4 w-4" />
+              New Daily Report
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -142,11 +146,13 @@ export default function Dashboard() {
               <div className="text-center py-8">
                 <ClipboardList className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
                 <p className="text-sm text-muted-foreground">No reports yet</p>
-                <Link href="/daily-reports/new">
-                  <Button variant="outline" size="sm" className="mt-3" data-testid="button-create-first-report">
-                    Create first report
-                  </Button>
-                </Link>
+                {hasPermission("create_daily_report") && (
+                  <Link href="/daily-reports/new">
+                    <Button variant="outline" size="sm" className="mt-3" data-testid="button-create-first-report">
+                      Create first report
+                    </Button>
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="space-y-3">

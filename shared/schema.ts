@@ -61,8 +61,16 @@ export const dailyReports = pgTable("daily_reports", {
   approvedBy: text("approved_by"),
   approvedAt: timestamp("approved_at"),
   rejectionReason: text("rejection_reason"),
+  activityLog: jsonb("activity_log").notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export interface ActivityLogEntry {
+  action: string;
+  userName: string;
+  timestamp: string;
+  details?: string;
+}
 
 export const insertDailyReportSchema = createInsertSchema(dailyReports).omit({ id: true, createdAt: true, submittedAt: true, approvedAt: true });
 export type InsertDailyReport = z.infer<typeof insertDailyReportSchema>;

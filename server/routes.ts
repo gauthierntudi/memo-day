@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, weeklyPlans, SUPER_ADMIN_EMAIL, ORG_ROLES, PERMISSIONS } from "@shared/schema";
+import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, weeklyPlans, SUPER_ADMIN_EMAIL, ORG_ROLES, PERMISSIONS, type ActivityLogEntry } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
@@ -65,6 +65,20 @@ async function getUserAllowedProjectIds(userId: string): Promise<{ allProjects: 
 function canAccessProject(allowed: { allProjects: boolean; projectIds: number[] }, projectId: number): boolean {
   if (allowed.allProjects) return true;
   return allowed.projectIds.includes(projectId);
+}
+
+async function appendDailyReportLog(reportId: number, action: string, userName: string, details?: string) {
+  const report = await storage.getDailyReport(reportId);
+  if (!report) return;
+  const log = (report.activityLog as ActivityLogEntry[]) || [];
+  const entry: ActivityLogEntry = {
+    action,
+    userName,
+    timestamp: new Date().toISOString(),
+    ...(details ? { details } : {}),
+  };
+  log.push(entry);
+  await db.update(dailyReports).set({ activityLog: log }).where(eq(dailyReports.id, reportId));
 }
 
 export async function registerRoutes(
@@ -225,8 +239,11 @@ export async function registerRoutes(
       if (!canAccessProject(allowed, validated.projectId)) {
         return res.status(403).json({ message: "You do not have access to this project" });
       }
+      const user = await storage.getUser(req.session.userId!);
       const report = await storage.createDailyReport(validated);
-      res.status(201).json(report);
+      await appendDailyReportLog(report.id, "Created", user?.name || "Unknown");
+      const final = await storage.getDailyReport(report.id);
+      res.status(201).json(final);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
     }
@@ -241,9 +258,12 @@ export async function registerRoutes(
         return res.status(403).json({ message: "You do not have access to this project" });
       }
       const partial = insertDailyReportSchema.partial().parse(req.body);
+      const user = await storage.getUser(req.session.userId!);
       const report = await storage.updateDailyReport(Number(req.params.id), partial);
       if (!report) return res.status(404).json({ message: "Report not found" });
-      res.json(report);
+      await appendDailyReportLog(report.id, "Saved", user?.name || "Unknown");
+      const final = await storage.getDailyReport(report.id);
+      res.json(final);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
     }
@@ -270,6 +290,7 @@ export async function registerRoutes(
       });
       if (updated) {
         await db.update(dailyReports).set({ submittedAt: new Date(), approvedAt: null }).where(eq(dailyReports.id, report.id));
+        await appendDailyReportLog(report.id, "Submitted", user.name);
         const final = await storage.getDailyReport(report.id);
         return res.json(final);
       }
@@ -301,6 +322,7 @@ export async function registerRoutes(
       });
       if (updated) {
         await db.update(dailyReports).set({ approvedAt: new Date() }).where(eq(dailyReports.id, report.id));
+        await appendDailyReportLog(report.id, "Approved", user.name);
         const final = await storage.getDailyReport(report.id);
         return res.json(final);
       }
@@ -332,7 +354,9 @@ export async function registerRoutes(
         rejectionReason: reason || "No reason provided",
         approvedBy: null,
       });
-      res.json(updated);
+      await appendDailyReportLog(report.id, "Rejected", user.name, reason || "No reason provided");
+      const final = await storage.getDailyReport(report.id);
+      res.json(final);
     } catch (err: unknown) {
       res.status(500).json({ message: (err as Error).message });
     }

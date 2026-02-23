@@ -53,7 +53,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import type { Project, DailyReport, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem } from "@shared/schema";
+import type { Project, DailyReport, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem, ActivityLogEntry } from "@shared/schema";
 import { TRADES, WEATHER_CONDITIONS, EQUIPMENT_TYPES, EQUIPMENT_STATUS, INCIDENT_TYPES, SEVERITY_LEVELS, SECURITY_INCIDENT_TYPES, CLEANING_STATUS, MATERIAL_UNITS, ACTIVITY_STATUS, INVENTORY_STATUS } from "@shared/schema";
 
 const emptyActivity: WorkActivity = { trade: "", description: "", location: "", percentComplete: 0, status: "In Progress" };
@@ -382,6 +382,47 @@ export default function DailyReportForm() {
               </div>
             </CardContent>
           </Card>
+
+          {isEdit && (() => {
+            const logs = (existing?.activityLog as ActivityLogEntry[]) || [];
+            if (logs.length === 0) return null;
+            return (
+              <Card data-testid="card-activity-log">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" /> Activity Log</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {[...logs].reverse().map((entry, i) => {
+                      const dt = new Date(entry.timestamp);
+                      const dateStr = dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+                      const timeStr = dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+                      const actionColor = entry.action === "Approved" ? "text-green-600 dark:text-green-400"
+                        : entry.action === "Rejected" ? "text-red-600 dark:text-red-400"
+                        : entry.action === "Submitted" ? "text-blue-600 dark:text-blue-400"
+                        : "text-muted-foreground";
+                      return (
+                        <div key={i} className="flex items-start gap-3 text-sm border-b last:border-0 pb-2 last:pb-0" data-testid={`log-entry-${i}`}>
+                          <div className="shrink-0 text-xs text-muted-foreground w-28">
+                            <div>{dateStr}</div>
+                            <div>{timeStr}</div>
+                          </div>
+                          <div className="flex-1">
+                            <span className={`font-medium ${actionColor}`}>{entry.action}</span>
+                            <span className="text-muted-foreground"> by </span>
+                            <span className="font-medium">{entry.userName}</span>
+                            {entry.details && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{entry.details}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="weather" className="space-y-4 mt-4">

@@ -329,7 +329,7 @@ export const users = pgTable("users", {
   orgRole: text("org_role").notNull(),
   appRole: text("app_role").notNull().default("user"),
   isActive: boolean("is_active").notNull().default(true),
-  projectId: integer("project_id"),
+  projectIds: jsonb("project_ids").$type<number[]>(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

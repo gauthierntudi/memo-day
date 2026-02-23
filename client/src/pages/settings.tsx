@@ -51,7 +51,14 @@ import {
   Lock,
   Crown,
   Key,
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { User, Project } from "@shared/schema";
 import { ORG_ROLES, PERMISSIONS, PERMISSION_LABELS, SUPER_ADMIN_EMAIL } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,14 +81,15 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [orgRole, setOrgRole] = useState(user?.orgRole || "");
-  const [projectId, setProjectId] = useState<string>(user?.projectId === -1 ? "all" : user?.projectId ? String(user.projectId) : "");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>(user?.projectIds || []);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
 
   useEffect(() => {
     setName(user?.name || "");
     setEmail(user?.email || "");
     setPhone(user?.phone || "");
     setOrgRole(user?.orgRole || "");
-    setProjectId(user?.projectId === -1 ? "all" : user?.projectId ? String(user.projectId) : "");
+    setSelectedProjectIds(user?.projectIds || []);
   }, [user, open]);
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
@@ -121,7 +129,7 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
       toast({ title: "Missing fields", description: "Name, email, and organization role are required.", variant: "destructive" });
       return;
     }
-    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole, projectId: projectId === "all" ? -1 : projectId && projectId !== "none" ? parseInt(projectId) : null };
+    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole, projectIds: selectedProjectIds.length > 0 ? selectedProjectIds : null };
     if (isEditing) {
       updateMutation.mutate(data);
     } else {
@@ -175,19 +183,68 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Assigned Project</Label>
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger data-testid="select-project">
-                <SelectValue placeholder="Select project" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Project</SelectItem>
-                <SelectItem value="all">All Projects</SelectItem>
-                {projects?.map(p => (
-                  <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.code})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Assigned Projects</Label>
+            <Popover open={projectDropdownOpen} onOpenChange={setProjectDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                  data-testid="select-project"
+                >
+                  <span className="truncate">
+                    {selectedProjectIds.includes(-1)
+                      ? "All Projects"
+                      : selectedProjectIds.length > 0
+                        ? `${selectedProjectIds.length} project${selectedProjectIds.length > 1 ? "s" : ""} selected`
+                        : "Select projects"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <div className="max-h-60 overflow-y-auto p-1">
+                  <div
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer hover:bg-accent"
+                    onClick={() => {
+                      if (selectedProjectIds.includes(-1)) {
+                        setSelectedProjectIds([]);
+                      } else {
+                        setSelectedProjectIds([-1]);
+                      }
+                    }}
+                    data-testid="option-all-projects"
+                  >
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-sm border ${selectedProjectIds.includes(-1) ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"}`}>
+                      {selectedProjectIds.includes(-1) && <Check className="h-3 w-3" />}
+                    </div>
+                    <span className="text-sm font-medium">All Projects</span>
+                  </div>
+                  {projects?.map(p => {
+                    const isSelected = selectedProjectIds.includes(p.id);
+                    const isAllSelected = selectedProjectIds.includes(-1);
+                    return (
+                      <div
+                        key={p.id}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer hover:bg-accent ${isAllSelected ? "opacity-50" : ""}`}
+                        onClick={() => {
+                          if (isAllSelected) return;
+                          setSelectedProjectIds(prev =>
+                            isSelected ? prev.filter(id => id !== p.id) : [...prev, p.id]
+                          );
+                        }}
+                        data-testid={`option-project-${p.id}`}
+                      >
+                        <div className={`flex h-4 w-4 items-center justify-center rounded-sm border ${isSelected || isAllSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"}`}>
+                          {(isSelected || isAllSelected) && <Check className="h-3 w-3" />}
+                        </div>
+                        <span className="text-sm">{p.name} ({p.code})</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <DialogFooter>
@@ -635,15 +692,17 @@ export default function SettingsPage() {
                         <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {user.email}</span>
                         {user.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {user.phone}</span>}
                         <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {user.orgRole}</span>
-                        {user.projectId === -1 ? (
+                        {user.projectIds && user.projectIds.length > 0 && (
                           <span className="flex items-center gap-1" data-testid={`text-user-project-${user.id}`}>
-                            <Building2 className="h-3 w-3" /> All Projects
+                            <Building2 className="h-3 w-3" />
+                            {user.projectIds.includes(-1)
+                              ? "All Projects"
+                              : user.projectIds
+                                  .map(pid => projectMap.get(pid)?.name)
+                                  .filter(Boolean)
+                                  .join(", ")}
                           </span>
-                        ) : user.projectId && projectMap.get(user.projectId) ? (
-                          <span className="flex items-center gap-1" data-testid={`text-user-project-${user.id}`}>
-                            <Building2 className="h-3 w-3" /> {projectMap.get(user.projectId)!.name}
-                          </span>
-                        ) : null}
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

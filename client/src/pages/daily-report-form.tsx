@@ -53,7 +53,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import type { Project, DailyReport, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem, ActivityLogEntry } from "@shared/schema";
+import type { Project, DailyReport, User, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem, ActivityLogEntry } from "@shared/schema";
 import { TRADES, WEATHER_CONDITIONS, EQUIPMENT_TYPES, EQUIPMENT_STATUS, INCIDENT_TYPES, SEVERITY_LEVELS, SECURITY_INCIDENT_TYPES, CLEANING_STATUS, MATERIAL_UNITS, ACTIVITY_STATUS, INVENTORY_STATUS } from "@shared/schema";
 
 const emptyActivity: WorkActivity = { trade: "", description: "", location: "", percentComplete: 0, status: "In Progress" };
@@ -77,6 +77,7 @@ export default function DailyReportForm() {
   const [rejectionReason, setRejectionReason] = useState("");
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
+  const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: existing } = useQuery<DailyReport>({
     queryKey: ["/api/daily-reports", params.id],
     enabled: !!isEdit,
@@ -105,6 +106,14 @@ export default function DailyReportForm() {
   const [materialsUsed, setMaterialsUsed] = useState<MaterialEntry[]>([]);
   const [inventoryStatus, setInventoryStatus] = useState<InventoryItem[]>([]);
   const [comments, setComments] = useState("");
+
+  const projectUsers = (allUsers || []).filter(u => {
+    if (!u.isActive) return false;
+    if (!projectId) return true;
+    const pIds = u.projectIds as number[] | null;
+    if (!pIds) return false;
+    return pIds.includes(-1) || pIds.includes(projectId);
+  });
 
   useEffect(() => {
     if (existing) {
@@ -364,7 +373,12 @@ export default function DailyReportForm() {
                 </div>
                 <div className="space-y-2">
                   <Label>Prepared By</Label>
-                  <Input value={preparedBy} onChange={e => setPreparedBy(e.target.value)} placeholder="Inspector name" data-testid="input-prepared-by" />
+                  <Select value={preparedBy} onValueChange={setPreparedBy}>
+                    <SelectTrigger data-testid="select-prepared-by"><SelectValue placeholder="Select user" /></SelectTrigger>
+                    <SelectContent>
+                      {projectUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Shift Start</Label>
@@ -657,7 +671,10 @@ export default function DailyReportForm() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Reported By</Label>
-                          <Input value={inc.reportedBy} onChange={e => setSafetyIncidents(a => updateArrayItem(a, i, "reportedBy", e.target.value))} data-testid={`input-safety-reported-${i}`} />
+                          <Select value={inc.reportedBy} onValueChange={v => setSafetyIncidents(a => updateArrayItem(a, i, "reportedBy", v))}>
+                            <SelectTrigger data-testid={`select-safety-reported-${i}`}><SelectValue placeholder="Select user" /></SelectTrigger>
+                            <SelectContent>{projectUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}</SelectContent>
+                          </Select>
                         </div>
                       </div>
                       <div className="space-y-1">
@@ -773,7 +790,10 @@ export default function DailyReportForm() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Reported By</Label>
-                          <Input value={inc.reportedBy} onChange={e => setSecurityIncidents(a => updateArrayItem(a, i, "reportedBy", e.target.value))} data-testid={`input-security-reported-${i}`} />
+                          <Select value={inc.reportedBy} onValueChange={v => setSecurityIncidents(a => updateArrayItem(a, i, "reportedBy", v))}>
+                            <SelectTrigger data-testid={`select-security-reported-${i}`}><SelectValue placeholder="Select user" /></SelectTrigger>
+                            <SelectContent>{projectUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}</SelectContent>
+                          </Select>
                         </div>
                       </div>
                       <div className="space-y-1">

@@ -52,7 +52,7 @@ import {
   Key,
 } from "lucide-react";
 import type { User } from "@shared/schema";
-import { APP_ROLES, ORG_ROLES, SUPER_ADMIN_EMAIL } from "@shared/schema";
+import { ORG_ROLES, SUPER_ADMIN_EMAIL } from "@shared/schema";
 
 function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boolean; onOpenChange: (v: boolean) => void }) {
   const { toast } = useToast();
@@ -63,7 +63,6 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [orgRole, setOrgRole] = useState(user?.orgRole || "");
-  const [appRole, setAppRole] = useState(user?.appRole || "user");
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -100,7 +99,7 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
       toast({ title: "Missing fields", description: "Name, email, and organization role are required.", variant: "destructive" });
       return;
     }
-    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole, appRole };
+    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole };
     if (isEditing) {
       updateMutation.mutate(data);
     } else {
@@ -152,24 +151,6 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>App Role *</Label>
-            <Select value={appRole} onValueChange={setAppRole} disabled={isSuperAdmin}>
-              <SelectTrigger data-testid="select-app-role">
-                <SelectValue placeholder="Select app role" />
-              </SelectTrigger>
-              <SelectContent>
-                {APP_ROLES.map(r => (
-                  <SelectItem key={r} value={r}>
-                    <span className="capitalize">{r}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isSuperAdmin && (
-              <p className="text-xs text-muted-foreground">Super admin role cannot be changed.</p>
-            )}
           </div>
         </div>
         <DialogFooter>
@@ -310,14 +291,6 @@ export default function SettingsPage() {
   const activeCount = users?.filter(u => u.isActive).length || 0;
   const totalCount = users?.length || 0;
 
-  const appRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case "admin": return "default";
-      case "user": return "secondary";
-      case "viewer": return "outline";
-      default: return "secondary";
-    }
-  };
 
   if (isLoading) {
     return (
@@ -407,9 +380,6 @@ export default function SettingsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium" data-testid={`text-user-name-${user.id}`}>{user.name}</span>
-                        <Badge variant={appRoleBadgeVariant(user.appRole)} className="capitalize text-xs" data-testid={`badge-app-role-${user.id}`}>
-                          {user.appRole}
-                        </Badge>
                         {isSuperAdmin && (
                           <Badge variant="default" className="text-xs bg-amber-500 hover:bg-amber-500">
                             <Crown className="h-3 w-3 mr-1" /> Super Admin

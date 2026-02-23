@@ -52,7 +52,17 @@ import {
   Key,
 } from "lucide-react";
 import type { User } from "@shared/schema";
-import { ORG_ROLES, SUPER_ADMIN_EMAIL } from "@shared/schema";
+import { ORG_ROLES, PERMISSIONS, PERMISSION_LABELS, SUPER_ADMIN_EMAIL } from "@shared/schema";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boolean; onOpenChange: (v: boolean) => void }) {
   const { toast } = useToast();
@@ -243,6 +253,169 @@ function SetPasswordDialog({ userId, userName, open, onOpenChange }: { userId: s
   );
 }
 
+function PrivilegesPanel() {
+  const { toast } = useToast();
+  const { data: privileges, isLoading } = useQuery<Record<string, string[]>>({
+    queryKey: ["/api/role-privileges"],
+  });
+
+  const [localPrivs, setLocalPrivs] = useState<Record<string, string[]>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useState(() => {
+    if (privileges) {
+      setLocalPrivs(privileges);
+    }
+  });
+
+  const updateFromServer = (data: Record<string, string[]>) => {
+    setLocalPrivs(data);
+    setHasChanges(false);
+  };
+
+  if (privileges && Object.keys(localPrivs).length === 0) {
+    updateFromServer(privileges);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: Record<string, string[]>) => {
+      const res = await apiRequest("PUT", "/api/role-privileges", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/role-privileges"] });
+      setHasChanges(false);
+      toast({ title: "Privileges saved successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const togglePermission = (role: string, permission: string) => {
+    setLocalPrivs(prev => {
+      const current = prev[role] || [];
+      const updated = current.includes(permission)
+        ? current.filter(p => p !== permission)
+        : [...current, permission];
+      return { ...prev, [role]: updated };
+    });
+    setHasChanges(true);
+  };
+
+  const toggleAllForRole = (role: string) => {
+    setLocalPrivs(prev => {
+      const current = prev[role] || [];
+      const allChecked = PERMISSIONS.every(p => current.includes(p));
+      return { ...prev, [role]: allChecked ? [] : [...PERMISSIONS] };
+    });
+    setHasChanges(true);
+  };
+
+  const toggleAllForPermission = (permission: string) => {
+    setLocalPrivs(prev => {
+      const allChecked = ORG_ROLES.every(role => (prev[role] || []).includes(permission));
+      const updated = { ...prev };
+      for (const role of ORG_ROLES) {
+        const current = updated[role] || [];
+        if (allChecked) {
+          updated[role] = current.filter(p => p !== permission);
+        } else if (!current.includes(permission)) {
+          updated[role] = [...current, permission];
+        }
+      }
+      return updated;
+    });
+    setHasChanges(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Shield className="h-5 w-5" /> Role Privileges
+          </h2>
+          <p className="text-sm text-muted-foreground">Define what each organization role can access and do in the system.</p>
+        </div>
+        <Button
+          onClick={() => saveMutation.mutate(localPrivs)}
+          disabled={!hasChanges || saveMutation.isPending}
+          data-testid="button-save-privileges"
+        >
+          {saveMutation.isPending ? "Saving..." : "Save Changes"}
+        </Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="sticky left-0 bg-background z-10 min-w-[180px] font-semibold">
+                    Organization Role
+                  </TableHead>
+                  {PERMISSIONS.map(perm => (
+                    <TableHead key={perm} className="text-center min-w-[100px] px-2">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-xs leading-tight">{PERMISSION_LABELS[perm]}</span>
+                        <Checkbox
+                          checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
+                          onCheckedChange={() => toggleAllForPermission(perm)}
+                          data-testid={`checkbox-all-${perm}`}
+                        />
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ORG_ROLES.map(role => {
+                  const rolePerms = localPrivs[role] || [];
+                  const allChecked = PERMISSIONS.every(p => rolePerms.includes(p));
+                  return (
+                    <TableRow key={role} data-testid={`row-role-${role}`}>
+                      <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={allChecked}
+                            onCheckedChange={() => toggleAllForRole(role)}
+                            data-testid={`checkbox-all-role-${role}`}
+                          />
+                          <span className="text-sm">{role}</span>
+                        </div>
+                      </TableCell>
+                      {PERMISSIONS.map(perm => (
+                        <TableCell key={perm} className="text-center">
+                          <Checkbox
+                            checked={rolePerms.includes(perm)}
+                            onCheckedChange={() => togglePermission(role, perm)}
+                            data-testid={`checkbox-${role}-${perm}`}
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -305,15 +478,23 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="heading-settings">
-            <Settings className="h-6 w-6" /> Settings
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage users and access control. Only emails on this list can log in or sign up.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="heading-settings">
+          <Settings className="h-6 w-6" /> Settings
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage users, access control, and role privileges.
+        </p>
+      </div>
+
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="users" data-testid="tab-users"><Users className="h-4 w-4 mr-2" /> Users</TabsTrigger>
+          <TabsTrigger value="privileges" data-testid="tab-privileges"><Shield className="h-4 w-4 mr-2" /> Privileges</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-6">
+      <div className="flex items-center justify-end">
         <Button onClick={openAddDialog} data-testid="button-add-user">
           <Plus className="h-4 w-4 mr-2" /> Add User
         </Button>
@@ -459,6 +640,12 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="privileges">
+          <PrivilegesPanel />
+        </TabsContent>
+      </Tabs>
 
       <UserFormDialog user={editingUser} open={dialogOpen} onOpenChange={setDialogOpen} />
       {passwordUser && (

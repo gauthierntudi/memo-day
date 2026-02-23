@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, weeklyPlans, SUPER_ADMIN_EMAIL } from "@shared/schema";
+import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, weeklyPlans, rolePrivileges, SUPER_ADMIN_EMAIL, ORG_ROLES, PERMISSIONS } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
@@ -475,6 +475,31 @@ export async function registerRoutes(
     const hashed = await bcrypt.hash(newPwd, 10);
     await storage.updateUserPassword(id, hashed);
     res.json({ message: "Password set" });
+  });
+
+  app.get("/api/role-privileges", requireAuth, async (_req, res) => {
+    const rows = await db.select().from(rolePrivileges);
+    const map: Record<string, string[]> = {};
+    for (const role of ORG_ROLES) {
+      const row = rows.find(r => r.orgRole === role);
+      map[role] = row ? (row.permissions as string[]) : [];
+    }
+    res.json(map);
+  });
+
+  app.put("/api/role-privileges", requireAuth, async (req, res) => {
+    const data = req.body as Record<string, string[]>;
+    for (const [role, perms] of Object.entries(data)) {
+      if (!ORG_ROLES.includes(role as any)) continue;
+      const validPerms = (perms || []).filter(p => PERMISSIONS.includes(p as any));
+      const existing = await db.select().from(rolePrivileges).where(eq(rolePrivileges.orgRole, role));
+      if (existing.length > 0) {
+        await db.update(rolePrivileges).set({ permissions: validPerms }).where(eq(rolePrivileges.orgRole, role));
+      } else {
+        await db.insert(rolePrivileges).values({ orgRole: role, permissions: validPerms });
+      }
+    }
+    res.json({ message: "Privileges updated" });
   });
 
   return httpServer;

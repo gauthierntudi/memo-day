@@ -336,6 +336,46 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, creat
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+export const PERMISSIONS = [
+  "view_dashboard",
+  "view_daily_report",
+  "create_daily_report",
+  "edit_save_daily_report",
+  "submit_daily_report",
+  "approve_reject_daily_report",
+  "create_weekly_plan",
+  "edit_save_weekly_plan",
+  "submit_weekly_plan",
+  "approve_reject_weekly_plan",
+  "view_weekly_report",
+  "view_executive_summary",
+] as const;
+
+export const PERMISSION_LABELS: Record<string, string> = {
+  view_dashboard: "View Dashboard",
+  view_daily_report: "View Daily Report",
+  create_daily_report: "Create Daily Report",
+  edit_save_daily_report: "Edit & Save Daily Report Draft",
+  submit_daily_report: "Submit / Resubmit Daily Report",
+  approve_reject_daily_report: "Approve / Reject Daily Report",
+  create_weekly_plan: "Create Weekly Plan",
+  edit_save_weekly_plan: "Edit & Save Weekly Plan Draft",
+  submit_weekly_plan: "Submit / Resubmit Weekly Plan",
+  approve_reject_weekly_plan: "Approve / Reject Weekly Plan",
+  view_weekly_report: "View Weekly Report",
+  view_executive_summary: "View Executive Summary",
+};
+
+export const rolePrivileges = pgTable("role_privileges", {
+  id: serial("id").primaryKey(),
+  orgRole: text("org_role").notNull().unique(),
+  permissions: jsonb("permissions").notNull().default([]),
+});
+
+export const insertRolePrivilegeSchema = createInsertSchema(rolePrivileges).omit({ id: true });
+export type InsertRolePrivilege = z.infer<typeof insertRolePrivilegeSchema>;
+export type RolePrivilege = typeof rolePrivileges.$inferSelect;
+
 export const APP_ROLES = ["admin", "user", "viewer"] as const;
 
 export const ORG_ROLES = [

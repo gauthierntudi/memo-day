@@ -53,6 +53,20 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+async function getUserAllowedProjectIds(userId: string): Promise<{ allProjects: boolean; projectIds: number[] }> {
+  const user = await storage.getUser(userId);
+  if (!user) return { allProjects: false, projectIds: [] };
+  const ids = user.projectIds as number[] | null;
+  if (!ids || ids.length === 0) return { allProjects: false, projectIds: [] };
+  if (ids.includes(-1)) return { allProjects: true, projectIds: [] };
+  return { allProjects: false, projectIds: ids };
+}
+
+function canAccessProject(allowed: { allProjects: boolean; projectIds: number[] }, projectId: number): boolean {
+  if (allowed.allProjects) return true;
+  return allowed.projectIds.includes(projectId);
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express

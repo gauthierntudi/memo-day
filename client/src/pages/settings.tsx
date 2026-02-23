@@ -393,7 +393,7 @@ function PrivilegesPanel() {
           <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 bg-muted z-10 w-[160px] min-w-[160px] font-semibold text-sm border-r">
+                <TableHead className="sticky left-0 bg-muted z-10 w-[220px] min-w-[220px] font-semibold text-sm border-r">
                   Organization Role
                 </TableHead>
                 {PERMISSIONS.map(perm => (
@@ -416,7 +416,7 @@ function PrivilegesPanel() {
                 const allChecked = PERMISSIONS.every(p => rolePerms.includes(p));
                 return (
                   <TableRow key={role} data-testid={`row-role-${role}`}>
-                    <TableCell className="sticky left-0 bg-background z-10 font-medium border-r">
+                    <TableCell className="sticky left-0 bg-background z-10 w-[220px] min-w-[220px] font-medium border-r">
                       <div className="flex items-center gap-2">
                         <Checkbox
                           checked={allChecked}

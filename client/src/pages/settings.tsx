@@ -41,6 +41,7 @@ import {
   Users,
   Settings,
   Pencil,
+  Building2,
   Trash2,
   Mail,
   Phone,
@@ -51,7 +52,7 @@ import {
   Crown,
   Key,
 } from "lucide-react";
-import type { User } from "@shared/schema";
+import type { User, Project } from "@shared/schema";
 import { ORG_ROLES, PERMISSIONS, PERMISSION_LABELS, SUPER_ADMIN_EMAIL } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -73,6 +74,17 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [orgRole, setOrgRole] = useState(user?.orgRole || "");
+  const [projectId, setProjectId] = useState<string>(user?.projectId ? String(user.projectId) : "");
+
+  useEffect(() => {
+    setName(user?.name || "");
+    setEmail(user?.email || "");
+    setPhone(user?.phone || "");
+    setOrgRole(user?.orgRole || "");
+    setProjectId(user?.projectId ? String(user.projectId) : "");
+  }, [user, open]);
+
+  const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -109,7 +121,7 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
       toast({ title: "Missing fields", description: "Name, email, and organization role are required.", variant: "destructive" });
       return;
     }
-    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole };
+    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole, projectId: projectId && projectId !== "none" ? parseInt(projectId) : null };
     if (isEditing) {
       updateMutation.mutate(data);
     } else {
@@ -158,6 +170,20 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
               <SelectContent>
                 {ORG_ROLES.map(r => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Assigned Project</Label>
+            <Select value={projectId} onValueChange={setProjectId}>
+              <SelectTrigger data-testid="select-project">
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Project</SelectItem>
+                {projects?.map(p => (
+                  <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.code})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -455,6 +481,8 @@ export default function SettingsPage() {
   const [passwordUser, setPasswordUser] = useState<{ id: string; name: string } | null>(null);
 
   const { data: users, isLoading } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
+  const projectMap = new Map(projects?.map(p => [p.id, p]) || []);
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
@@ -606,6 +634,11 @@ export default function SettingsPage() {
                         <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {user.email}</span>
                         {user.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {user.phone}</span>}
                         <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {user.orgRole}</span>
+                        {user.projectId && projectMap.get(user.projectId) && (
+                          <span className="flex items-center gap-1" data-testid={`text-user-project-${user.id}`}>
+                            <Building2 className="h-3 w-3" /> {projectMap.get(user.projectId)!.name}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

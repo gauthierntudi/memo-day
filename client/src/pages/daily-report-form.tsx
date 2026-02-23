@@ -104,7 +104,6 @@ export default function DailyReportForm() {
   const [materialsIn, setMaterialsIn] = useState<MaterialEntry[]>([]);
   const [materialsUsed, setMaterialsUsed] = useState<MaterialEntry[]>([]);
   const [inventoryStatus, setInventoryStatus] = useState<InventoryItem[]>([]);
-  const [overallProgress, setOverallProgress] = useState(0);
   const [comments, setComments] = useState("");
 
   useEffect(() => {
@@ -131,7 +130,7 @@ export default function DailyReportForm() {
       setMaterialsIn(existing.materialsIn as MaterialEntry[]);
       setMaterialsUsed(existing.materialsUsed as MaterialEntry[]);
       setInventoryStatus(existing.inventoryStatus as InventoryItem[]);
-      setOverallProgress(existing.overallProgress || 0);
+
       setComments(existing.comments || "");
     }
   }, [existing]);
@@ -161,7 +160,7 @@ export default function DailyReportForm() {
         materialsIn,
         materialsUsed,
         inventoryStatus,
-        overallProgress,
+        overallProgress: 0,
         comments: comments || null,
         status,
       };
@@ -380,13 +379,6 @@ export default function DailyReportForm() {
                 <Switch checked={isWorkingDay} onCheckedChange={setIsWorkingDay} data-testid="switch-working-day" />
                 <Label>Working Day</Label>
                 {!isWorkingDay && <Badge variant="secondary">Non-working day</Badge>}
-              </div>
-              <div className="space-y-2">
-                <Label>Overall Progress (%)</Label>
-                <div className="flex items-center gap-4">
-                  <Slider value={[overallProgress]} onValueChange={v => setOverallProgress(v[0])} max={100} step={1} className="flex-1" data-testid="slider-progress" />
-                  <span className="text-sm font-medium w-12 text-right">{overallProgress}%</span>
-                </div>
               </div>
             </CardContent>
           </Card>

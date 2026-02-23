@@ -247,7 +247,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager") {
+      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
         return res.status(403).json({ message: "Only Development Managers can approve reports" });
       }
       const report = await storage.getDailyReport(Number(req.params.id));
@@ -274,7 +274,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager") {
+      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
         return res.status(403).json({ message: "Only Development Managers can reject reports" });
       }
       const report = await storage.getDailyReport(Number(req.params.id));
@@ -356,7 +356,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager") {
+      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
         return res.status(403).json({ message: "Only Development Managers can approve weekly plans" });
       }
       const plan = await storage.getWeeklyPlan(Number(req.params.id));
@@ -383,7 +383,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager") {
+      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
         return res.status(403).json({ message: "Only Development Managers can reject weekly plans" });
       }
       const plan = await storage.getWeeklyPlan(Number(req.params.id));

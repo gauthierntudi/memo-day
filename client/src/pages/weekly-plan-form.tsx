@@ -161,7 +161,7 @@ export default function WeeklyPlanForm() {
   const isSubmitted = planStatus === "submitted";
   const isApproved = planStatus === "approved";
   const isRejected = planStatus === "rejected";
-  const isDevManager = user?.orgRole === "Development Manager";
+  const isDevManager = user?.orgRole === "Development Manager" || user?.orgRole === "Director";
   const canEdit = !isEdit || isDraft || isRejected;
   const canApprove = isDevManager && isSubmitted;
 

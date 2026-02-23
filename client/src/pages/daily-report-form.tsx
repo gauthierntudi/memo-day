@@ -235,7 +235,7 @@ export default function DailyReportForm() {
   const isSubmitted = reportStatus === "submitted";
   const isApproved = reportStatus === "approved";
   const isRejected = reportStatus === "rejected";
-  const isDevManager = user?.orgRole === "Development Manager";
+  const isDevManager = user?.orgRole === "Development Manager" || user?.orgRole === "Director";
   const canEdit = !isEdit || isDraft || isRejected;
   const canApprove = isDevManager && isSubmitted;
 

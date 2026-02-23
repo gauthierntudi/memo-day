@@ -55,7 +55,7 @@ function ProtectedRoute({ component: Component, permission }: { component: Compo
 function Router() {
   return (
     <Switch>
-      <Route path="/">{() => <ProtectedRoute component={Dashboard} permission="view_dashboard" />}</Route>
+      <Route path="/">{() => <ProtectedRoute component={Dashboard} permission={null} />}</Route>
       <Route path="/daily-reports">{() => <ProtectedRoute component={DailyReports} permission="view_daily_report" />}</Route>
       <Route path="/daily-reports/new">{() => <ProtectedRoute component={DailyReportForm} permission="view_daily_report" />}</Route>
       <Route path="/daily-reports/:id">{() => <ProtectedRoute component={DailyReportForm} permission="view_daily_report" />}</Route>

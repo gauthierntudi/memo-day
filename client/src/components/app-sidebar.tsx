@@ -34,8 +34,8 @@ const mainItems = [
 ];
 
 const managementItems = [
-  { title: "Projects", url: "/projects", icon: Building2, permission: null },
-  { title: "Settings", url: "/settings", icon: Settings, permission: null },
+  { title: "Projects", url: "/projects", icon: Building2, permission: "view_projects" },
+  { title: "Settings", url: "/settings", icon: Settings, permissions: ["view_users", "view_role_privileges"] },
 ];
 
 export function AppSidebar() {
@@ -44,7 +44,12 @@ export function AppSidebar() {
   const { hasPermission } = usePermissions();
 
   const visibleMainItems = mainItems.filter(item => !item.permission || hasPermission(item.permission));
-  const visibleMgmtItems = managementItems.filter(item => !item.permission || hasPermission(item.permission));
+  const visibleMgmtItems = managementItems.filter(item => {
+    if ("permissions" in item && item.permissions) {
+      return item.permissions.some(p => hasPermission(p));
+    }
+    return !item.permission || hasPermission(item.permission);
+  });
 
   return (
     <Sidebar>

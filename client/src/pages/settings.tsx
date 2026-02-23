@@ -338,7 +338,7 @@ function SetPasswordDialog({ userId, userName, open, onOpenChange }: { userId: s
   );
 }
 
-function PrivilegesPanel() {
+function PrivilegesPanel({ readOnly = false }: { readOnly?: boolean }) {
   const { toast } = useToast();
   const { data: privileges, isLoading } = useQuery<Record<string, string[]>>({
     queryKey: ["/api/role-privileges"],
@@ -452,13 +452,15 @@ function PrivilegesPanel() {
           </h2>
           <p className="text-sm text-muted-foreground">Define what each organization role can access and do in the system.</p>
         </div>
-        <Button
-          onClick={() => saveMutation.mutate(localPrivs)}
-          disabled={!hasChanges || saveMutation.isPending}
-          data-testid="button-save-privileges"
-        >
-          {saveMutation.isPending ? "Saving..." : "Save Changes"}
-        </Button>
+        {!readOnly && (
+          <Button
+            onClick={() => saveMutation.mutate(localPrivs)}
+            disabled={!hasChanges || saveMutation.isPending}
+            data-testid="button-save-privileges"
+          >
+            {saveMutation.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        )}
       </div>
 
       <div
@@ -491,6 +493,7 @@ function PrivilegesPanel() {
                       <Checkbox
                         checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
                         onCheckedChange={() => toggleAllForPermission(perm)}
+                        disabled={readOnly}
                         data-testid={`checkbox-all-${perm}`}
                       />
                     </div>
@@ -509,6 +512,7 @@ function PrivilegesPanel() {
                         <Checkbox
                           checked={allChecked}
                           onCheckedChange={() => toggleAllForRole(role)}
+                          disabled={readOnly}
                           data-testid={`checkbox-all-role-${role}`}
                         />
                         <span className="text-sm whitespace-nowrap">{role}</span>
@@ -519,6 +523,7 @@ function PrivilegesPanel() {
                         <Checkbox
                           checked={rolePerms.includes(perm)}
                           onCheckedChange={() => togglePermission(role, perm)}
+                          disabled={readOnly}
                           data-testid={`checkbox-${role}-${perm}`}
                         />
                       </TableCell>
@@ -537,6 +542,9 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canEditUsers = hasPermission("edit_users");
+  const canViewUsers = hasPermission("view_users");
+  const canViewPrivileges = hasPermission("view_role_privileges");
+  const canEditPrivileges = hasPermission("edit_role_privileges");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
   const [passwordUser, setPasswordUser] = useState<{ id: string; name: string } | null>(null);
@@ -608,13 +616,13 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-4">
+      <Tabs defaultValue={canViewUsers ? "users" : "privileges"} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="users" data-testid="tab-users"><Users className="h-4 w-4 mr-2" /> Users</TabsTrigger>
-          <TabsTrigger value="privileges" data-testid="tab-privileges"><Shield className="h-4 w-4 mr-2" /> Privileges</TabsTrigger>
+          {canViewUsers && <TabsTrigger value="users" data-testid="tab-users"><Users className="h-4 w-4 mr-2" /> Users</TabsTrigger>}
+          {canViewPrivileges && <TabsTrigger value="privileges" data-testid="tab-privileges"><Shield className="h-4 w-4 mr-2" /> Privileges</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="users" className="space-y-6">
+        {canViewUsers && <TabsContent value="users" className="space-y-6">
       {canEditUsers && (
         <div className="flex items-center justify-end">
           <Button onClick={openAddDialog} data-testid="button-add-user">
@@ -778,11 +786,11 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="privileges">
-          <PrivilegesPanel />
-        </TabsContent>
+        {canViewPrivileges && <TabsContent value="privileges">
+          <PrivilegesPanel readOnly={!canEditPrivileges} />
+        </TabsContent>}
       </Tabs>
 
       <UserFormDialog user={editingUser} open={dialogOpen} onOpenChange={setDialogOpen} />

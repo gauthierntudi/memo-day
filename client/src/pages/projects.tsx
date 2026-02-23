@@ -128,11 +128,6 @@ function ProjectFormDialog({
     }
   }, [open, project]);
 
-  const { data: users } = useQuery<User[]>({ queryKey: ["/api/users"] });
-  const activeUsers = users?.filter(u => u.isActive) || [];
-  const projectManagers = activeUsers.filter(u => u.orgRole === "Project Manager");
-  const devManagers = activeUsers.filter(u => u.orgRole === "Development Manager");
-
   const createMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
       const res = await apiRequest("POST", "/api/projects", data);
@@ -221,36 +216,7 @@ function ProjectFormDialog({
             <Label>Scope of Work</Label>
             <Textarea value={form.scopeOfWork || ""} onChange={e => setForm(f => ({ ...f, scopeOfWork: e.target.value || null }))} placeholder="Describe the project scope..." className="min-h-[60px]" data-testid="input-scope-of-work" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Project Manager</Label>
-              <Select value={form.projectManager || "__none__"} onValueChange={v => setForm(f => ({ ...f, projectManager: v === "__none__" ? null : v }))}>
-                <SelectTrigger data-testid="select-project-manager">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Not assigned</SelectItem>
-                  {projectManagers.map(u => (
-                    <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Development Manager</Label>
-              <Select value={form.developmentManager || "__none__"} onValueChange={v => setForm(f => ({ ...f, developmentManager: v === "__none__" ? null : v }))}>
-                <SelectTrigger data-testid="select-development-manager">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Not assigned</SelectItem>
-                  {devManagers.map(u => (
-                    <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">Project Manager and Development Manager are automatically assigned based on user settings. Manage assignments in the Settings page.</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label>Start Date</Label>
@@ -314,6 +280,17 @@ export default function Projects() {
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
+
+  const { data: users } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const activeUsers = users?.filter(u => u.isActive) || [];
+
+  const getAssignedUsersByRole = (projectId: number, role: string) => {
+    return activeUsers.filter(u =>
+      u.orgRole === role &&
+      u.projectIds &&
+      (u.projectIds.includes(-1) || u.projectIds.includes(projectId))
+    );
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -474,26 +451,34 @@ export default function Projects() {
                     <span className="text-muted-foreground">Contractor:</span>
                     <span className="font-medium">{project.contractor}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Project Manager:</span>
-                    <span className="font-medium flex items-center gap-1">
-                      {project.projectManager ? (
-                        <><UserCircle className="h-3.5 w-3.5" /> {project.projectManager}</>
-                      ) : (
-                        <span className="text-muted-foreground italic">Not assigned</span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Dev. Manager:</span>
-                    <span className="font-medium flex items-center gap-1">
-                      {project.developmentManager ? (
-                        <><UserCircle className="h-3.5 w-3.5" /> {project.developmentManager}</>
-                      ) : (
-                        <span className="text-muted-foreground italic">Not assigned</span>
-                      )}
-                    </span>
-                  </div>
+                  {(() => {
+                    const assignedPMs = getAssignedUsersByRole(project.id, "Project Manager");
+                    const assignedDMs = getAssignedUsersByRole(project.id, "Development Manager");
+                    return (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Project Manager:</span>
+                          <span className="font-medium flex items-center gap-1" data-testid={`text-pm-${project.id}`}>
+                            {assignedPMs.length > 0 ? (
+                              <><UserCircle className="h-3.5 w-3.5" /> {assignedPMs.map(u => u.name).join(", ")}</>
+                            ) : (
+                              <span className="text-muted-foreground italic">Not assigned</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Dev. Manager:</span>
+                          <span className="font-medium flex items-center gap-1" data-testid={`text-dm-${project.id}`}>
+                            {assignedDMs.length > 0 ? (
+                              <><UserCircle className="h-3.5 w-3.5" /> {assignedDMs.map(u => u.name).join(", ")}</>
+                            ) : (
+                              <span className="text-muted-foreground italic">Not assigned</span>
+                            )}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                   {project.scopeOfWork && (
                     <div className="pt-1">
                       <span className="text-muted-foreground text-xs">Scope of Work:</span>

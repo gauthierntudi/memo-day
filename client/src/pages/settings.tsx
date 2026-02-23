@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus,
@@ -338,7 +339,7 @@ function SetPasswordDialog({ userId, userName, open, onOpenChange }: { userId: s
   );
 }
 
-function PrivilegesPanel({ readOnly = false }: { readOnly?: boolean }) {
+function PrivilegesPanel({ readOnly = false, hideSuperAdmin = false, superAdminRole }: { readOnly?: boolean; hideSuperAdmin?: boolean; superAdminRole?: string }) {
   const { toast } = useToast();
   const { data: privileges, isLoading } = useQuery<Record<string, string[]>>({
     queryKey: ["/api/role-privileges"],
@@ -417,11 +418,15 @@ function PrivilegesPanel({ readOnly = false }: { readOnly?: boolean }) {
     setHasChanges(true);
   };
 
+  const visibleRoles = hideSuperAdmin && superAdminRole
+    ? ORG_ROLES.filter(r => r !== superAdminRole)
+    : [...ORG_ROLES];
+
   const toggleAllForPermission = (permission: string) => {
     setLocalPrivs(prev => {
-      const allChecked = ORG_ROLES.every(role => (prev[role] || []).includes(permission));
+      const allChecked = visibleRoles.every(role => (prev[role] || []).includes(permission));
       const updated = { ...prev };
-      for (const role of ORG_ROLES) {
+      for (const role of visibleRoles) {
         const current = updated[role] || [];
         if (allChecked) {
           updated[role] = current.filter(p => p !== permission);
@@ -491,7 +496,7 @@ function PrivilegesPanel({ readOnly = false }: { readOnly?: boolean }) {
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-sm font-medium leading-tight text-center">{PERMISSION_LABELS[perm]}</span>
                       <Checkbox
-                        checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
+                        checked={visibleRoles.every(role => (localPrivs[role] || []).includes(perm))}
                         onCheckedChange={() => toggleAllForPermission(perm)}
                         disabled={readOnly}
                         data-testid={`checkbox-all-${perm}`}
@@ -502,7 +507,7 @@ function PrivilegesPanel({ readOnly = false }: { readOnly?: boolean }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ORG_ROLES.map(role => {
+              {visibleRoles.map(role => {
                 const rolePerms = localPrivs[role] || [];
                 const allChecked = PERMISSIONS.every(p => rolePerms.includes(p));
                 return (
@@ -540,6 +545,8 @@ function PrivilegesPanel({ readOnly = false }: { readOnly?: boolean }) {
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+  const currentIsSuperAdmin = currentUser?.email === SUPER_ADMIN_EMAIL;
   const { hasPermission } = usePermissions();
   const canEditUsers = hasPermission("edit_users");
   const canViewUsers = hasPermission("view_users");
@@ -590,8 +597,11 @@ export default function SettingsPage() {
     setDialogOpen(true);
   };
 
-  const activeCount = users?.filter(u => u.isActive).length || 0;
-  const totalCount = users?.length || 0;
+  const visibleUsers = currentIsSuperAdmin
+    ? users
+    : users?.filter(u => u.email !== SUPER_ADMIN_EMAIL);
+  const activeCount = visibleUsers?.filter(u => u.isActive).length || 0;
+  const totalCount = visibleUsers?.length || 0;
 
 
   if (isLoading) {
@@ -672,7 +682,7 @@ export default function SettingsPage() {
           <CardTitle className="text-base">User List</CardTitle>
         </CardHeader>
         <CardContent>
-          {!users || users.length === 0 ? (
+          {!visibleUsers || visibleUsers.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
               <p className="text-muted-foreground">No users added yet</p>
@@ -682,7 +692,7 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="divide-y">
-              {users.map(user => {
+              {visibleUsers.map(user => {
                 const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
                 return (
                   <div key={user.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0" data-testid={`row-user-${user.id}`}>
@@ -789,7 +799,7 @@ export default function SettingsPage() {
         </TabsContent>}
 
         {canViewPrivileges && <TabsContent value="privileges">
-          <PrivilegesPanel readOnly={!canEditPrivileges} />
+          <PrivilegesPanel readOnly={!canEditPrivileges} hideSuperAdmin={!currentIsSuperAdmin} superAdminRole={users?.find(u => u.email === SUPER_ADMIN_EMAIL)?.orgRole} />
         </TabsContent>}
       </Tabs>
 

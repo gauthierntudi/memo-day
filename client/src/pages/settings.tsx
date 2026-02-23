@@ -331,7 +331,7 @@ function PrivilegesPanel() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -348,19 +348,19 @@ function PrivilegesPanel() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
+      <div className="overflow-x-auto -mx-6 px-6">
+        <Card className="min-w-fit">
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-background z-10 min-w-[180px] font-semibold">
+                  <TableHead className="sticky left-0 bg-card z-10 min-w-[160px] font-semibold border-r">
                     Organization Role
                   </TableHead>
                   {PERMISSIONS.map(perm => (
-                    <TableHead key={perm} className="text-center min-w-[100px] px-2">
+                    <TableHead key={perm} className="text-center px-1 w-[80px]">
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs leading-tight">{PERMISSION_LABELS[perm]}</span>
+                        <span className="text-[10px] leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
                         <Checkbox
                           checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
                           onCheckedChange={() => toggleAllForPermission(perm)}
@@ -377,18 +377,18 @@ function PrivilegesPanel() {
                   const allChecked = PERMISSIONS.every(p => rolePerms.includes(p));
                   return (
                     <TableRow key={role} data-testid={`row-role-${role}`}>
-                      <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                      <TableCell className="sticky left-0 bg-card z-10 font-medium border-r">
                         <div className="flex items-center gap-2">
                           <Checkbox
                             checked={allChecked}
                             onCheckedChange={() => toggleAllForRole(role)}
                             data-testid={`checkbox-all-role-${role}`}
                           />
-                          <span className="text-sm">{role}</span>
+                          <span className="text-xs whitespace-nowrap">{role}</span>
                         </div>
                       </TableCell>
                       {PERMISSIONS.map(perm => (
-                        <TableCell key={perm} className="text-center">
+                        <TableCell key={perm} className="text-center px-1">
                           <Checkbox
                             checked={rolePerms.includes(perm)}
                             onCheckedChange={() => togglePermission(role, perm)}
@@ -401,9 +401,9 @@ function PrivilegesPanel() {
                 })}
               </TableBody>
             </Table>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

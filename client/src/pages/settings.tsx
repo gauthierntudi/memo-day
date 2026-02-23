@@ -390,16 +390,16 @@ function PrivilegesPanel() {
         data-testid="privileges-bottom-scrollbar"
       >
         <div ref={tableRef} className="w-fit">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 bg-muted z-10 min-w-[160px] font-semibold text-sm border-r">
+                <TableHead className="sticky left-0 bg-muted z-10 w-[160px] min-w-[160px] font-semibold text-sm border-r">
                   Organization Role
                 </TableHead>
                 {PERMISSIONS.map(perm => (
-                  <TableHead key={perm} className="text-center px-2 min-w-[90px]">
+                  <TableHead key={perm} className="text-center px-2 w-[120px] min-w-[120px] max-w-[120px]">
                     <div className="flex flex-col items-center gap-1">
-                      <span className="text-sm font-medium leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
+                      <span className="text-sm font-medium leading-tight text-center">{PERMISSION_LABELS[perm]}</span>
                       <Checkbox
                         checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
                         onCheckedChange={() => toggleAllForPermission(perm)}
@@ -427,7 +427,7 @@ function PrivilegesPanel() {
                       </div>
                     </TableCell>
                     {PERMISSIONS.map(perm => (
-                      <TableCell key={perm} className="text-center px-2">
+                      <TableCell key={perm} className="text-center px-2 w-[120px] min-w-[120px] max-w-[120px]">
                         <Checkbox
                           checked={rolePerms.includes(perm)}
                           onCheckedChange={() => togglePermission(role, perm)}

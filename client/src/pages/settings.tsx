@@ -358,7 +358,7 @@ function PrivilegesPanel() {
   }
 
   return (
-    <div className="space-y-4 overflow-hidden">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -377,7 +377,7 @@ function PrivilegesPanel() {
 
       <div
         ref={topScrollRef}
-        className="scrollbar-visible -mx-6 px-6"
+        className="scrollbar-visible w-full"
         onScroll={() => syncScroll('top')}
         data-testid="privileges-top-scrollbar"
       >
@@ -385,65 +385,61 @@ function PrivilegesPanel() {
       </div>
       <div
         ref={bottomScrollRef}
-        className="scrollbar-visible -mx-6 px-6"
+        className="scrollbar-visible w-full"
         onScroll={() => syncScroll('bottom')}
         data-testid="privileges-bottom-scrollbar"
       >
-        <div ref={tableRef}>
-        <Card className="min-w-fit">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="sticky left-0 bg-card z-10 min-w-[160px] font-semibold text-sm border-r">
-                    Organization Role
+        <div ref={tableRef} className="w-fit">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="sticky left-0 bg-muted z-10 min-w-[160px] font-semibold text-sm border-r">
+                  Organization Role
+                </TableHead>
+                {PERMISSIONS.map(perm => (
+                  <TableHead key={perm} className="text-center px-2 min-w-[90px]">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-xs font-medium leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
+                      <Checkbox
+                        checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
+                        onCheckedChange={() => toggleAllForPermission(perm)}
+                        data-testid={`checkbox-all-${perm}`}
+                      />
+                    </div>
                   </TableHead>
-                  {PERMISSIONS.map(perm => (
-                    <TableHead key={perm} className="text-center px-2 w-[90px]">
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs font-medium leading-tight whitespace-nowrap">{PERMISSION_LABELS[perm]}</span>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ORG_ROLES.map(role => {
+                const rolePerms = localPrivs[role] || [];
+                const allChecked = PERMISSIONS.every(p => rolePerms.includes(p));
+                return (
+                  <TableRow key={role} data-testid={`row-role-${role}`}>
+                    <TableCell className="sticky left-0 bg-background z-10 font-medium border-r">
+                      <div className="flex items-center gap-2">
                         <Checkbox
-                          checked={ORG_ROLES.every(role => (localPrivs[role] || []).includes(perm))}
-                          onCheckedChange={() => toggleAllForPermission(perm)}
-                          data-testid={`checkbox-all-${perm}`}
+                          checked={allChecked}
+                          onCheckedChange={() => toggleAllForRole(role)}
+                          data-testid={`checkbox-all-role-${role}`}
                         />
+                        <span className="text-sm whitespace-nowrap">{role}</span>
                       </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ORG_ROLES.map(role => {
-                  const rolePerms = localPrivs[role] || [];
-                  const allChecked = PERMISSIONS.every(p => rolePerms.includes(p));
-                  return (
-                    <TableRow key={role} data-testid={`row-role-${role}`}>
-                      <TableCell className="sticky left-0 bg-card z-10 font-medium border-r">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            checked={allChecked}
-                            onCheckedChange={() => toggleAllForRole(role)}
-                            data-testid={`checkbox-all-role-${role}`}
-                          />
-                          <span className="text-sm whitespace-nowrap">{role}</span>
-                        </div>
+                    </TableCell>
+                    {PERMISSIONS.map(perm => (
+                      <TableCell key={perm} className="text-center px-2">
+                        <Checkbox
+                          checked={rolePerms.includes(perm)}
+                          onCheckedChange={() => togglePermission(role, perm)}
+                          data-testid={`checkbox-${role}-${perm}`}
+                        />
                       </TableCell>
-                      {PERMISSIONS.map(perm => (
-                        <TableCell key={perm} className="text-center px-2">
-                          <Checkbox
-                            checked={rolePerms.includes(perm)}
-                            onCheckedChange={() => togglePermission(role, perm)}
-                            data-testid={`checkbox-${role}-${perm}`}
-                          />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    ))}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

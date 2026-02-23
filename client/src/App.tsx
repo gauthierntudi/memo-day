@@ -70,9 +70,9 @@ function AuthenticatedApp() {
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <ThemeToggle />
           </header>
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-auto">
             <Router />
-          </ScrollArea>
+          </div>
         </div>
       </div>
     </SidebarProvider>

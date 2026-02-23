@@ -364,7 +364,7 @@ export default function Projects() {
 
   const formatCurrency = (value: number | null) => {
     if (value === null || value === undefined) return "—";
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(value);
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
   };
 
   if (isLoading) {

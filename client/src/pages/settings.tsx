@@ -74,14 +74,14 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [orgRole, setOrgRole] = useState(user?.orgRole || "");
-  const [projectId, setProjectId] = useState<string>(user?.projectId ? String(user.projectId) : "");
+  const [projectId, setProjectId] = useState<string>(user?.projectId === -1 ? "all" : user?.projectId ? String(user.projectId) : "");
 
   useEffect(() => {
     setName(user?.name || "");
     setEmail(user?.email || "");
     setPhone(user?.phone || "");
     setOrgRole(user?.orgRole || "");
-    setProjectId(user?.projectId ? String(user.projectId) : "");
+    setProjectId(user?.projectId === -1 ? "all" : user?.projectId ? String(user.projectId) : "");
   }, [user, open]);
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
@@ -121,7 +121,7 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
       toast({ title: "Missing fields", description: "Name, email, and organization role are required.", variant: "destructive" });
       return;
     }
-    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole, projectId: projectId && projectId !== "none" ? parseInt(projectId) : null };
+    const data = { name: name.trim(), email: email.trim(), phone: phone.trim() || null, orgRole, projectId: projectId === "all" ? -1 : projectId && projectId !== "none" ? parseInt(projectId) : null };
     if (isEditing) {
       updateMutation.mutate(data);
     } else {
@@ -182,6 +182,7 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No Project</SelectItem>
+                <SelectItem value="all">All Projects</SelectItem>
                 {projects?.map(p => (
                   <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.code})</SelectItem>
                 ))}
@@ -634,11 +635,15 @@ export default function SettingsPage() {
                         <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {user.email}</span>
                         {user.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {user.phone}</span>}
                         <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {user.orgRole}</span>
-                        {user.projectId && projectMap.get(user.projectId) && (
+                        {user.projectId === -1 ? (
+                          <span className="flex items-center gap-1" data-testid={`text-user-project-${user.id}`}>
+                            <Building2 className="h-3 w-3" /> All Projects
+                          </span>
+                        ) : user.projectId && projectMap.get(user.projectId) ? (
                           <span className="flex items-center gap-1" data-testid={`text-user-project-${user.id}`}>
                             <Building2 className="h-3 w-3" /> {projectMap.get(user.projectId)!.name}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

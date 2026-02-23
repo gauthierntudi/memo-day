@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -262,20 +262,12 @@ function PrivilegesPanel() {
   const [localPrivs, setLocalPrivs] = useState<Record<string, string[]>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     if (privileges) {
       setLocalPrivs(privileges);
+      setHasChanges(false);
     }
-  });
-
-  const updateFromServer = (data: Record<string, string[]>) => {
-    setLocalPrivs(data);
-    setHasChanges(false);
-  };
-
-  if (privileges && Object.keys(localPrivs).length === 0) {
-    updateFromServer(privileges);
-  }
+  }, [privileges]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Record<string, string[]>) => {

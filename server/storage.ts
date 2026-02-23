@@ -1,11 +1,12 @@
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import {
-  projects, dailyReports, weeklyPlans, users,
+  projects, dailyReports, weeklyPlans, users, rolePrivileges,
   type Project, type InsertProject,
   type DailyReport, type InsertDailyReport,
   type WeeklyPlan, type InsertWeeklyPlan,
   type User, type InsertUser,
+  type RolePrivilege,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -32,6 +33,9 @@ export interface IStorage {
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   updateUserPassword(id: string, hashedPassword: string): Promise<void>;
   deleteUser(id: string): Promise<boolean>;
+
+  getRolePrivileges(): Promise<RolePrivilege[]>;
+  upsertRolePrivilege(orgRole: string, permissions: string[]): Promise<RolePrivilege>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -128,6 +132,20 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: string): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getRolePrivileges(): Promise<RolePrivilege[]> {
+    return db.select().from(rolePrivileges);
+  }
+
+  async upsertRolePrivilege(orgRole: string, permissions: string[]): Promise<RolePrivilege> {
+    const [existing] = await db.select().from(rolePrivileges).where(eq(rolePrivileges.orgRole, orgRole));
+    if (existing) {
+      const [updated] = await db.update(rolePrivileges).set({ permissions }).where(eq(rolePrivileges.orgRole, orgRole)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(rolePrivileges).values({ orgRole, permissions }).returning();
+    return created;
   }
 }
 

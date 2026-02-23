@@ -63,6 +63,7 @@ interface ProjectFormData {
   plannedDeliveryDate: string | null;
   updatedDeliveryDate: string | null;
   projectValue: number | null;
+  updatedProjectValue: number | null;
   overallProgress: number | null;
   status: string;
 }
@@ -81,6 +82,7 @@ const emptyForm: ProjectFormData = {
   plannedDeliveryDate: null,
   updatedDeliveryDate: null,
   projectValue: null,
+  updatedProjectValue: null,
   overallProgress: 0,
   status: "active",
 };
@@ -117,6 +119,7 @@ function ProjectFormDialog({
               plannedDeliveryDate: project.plannedDeliveryDate || null,
               updatedDeliveryDate: project.updatedDeliveryDate || null,
               projectValue: project.projectValue || null,
+              updatedProjectValue: project.updatedProjectValue || null,
               overallProgress: project.overallProgress || 0,
               status: project.status,
             }
@@ -261,9 +264,15 @@ function ProjectFormDialog({
               <Input type="date" value={form.updatedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, updatedDeliveryDate: e.target.value || null }))} data-testid="input-updated-delivery" />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Project Value</Label>
-            <Input type="number" min={0} step={0.01} value={form.projectValue ?? ""} onChange={e => setForm(f => ({ ...f, projectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter project value" data-testid="input-project-value" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Project Value</Label>
+              <Input type="number" min={0} step={0.01} value={form.projectValue ?? ""} onChange={e => setForm(f => ({ ...f, projectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter value" data-testid="input-project-value" />
+            </div>
+            <div className="space-y-2">
+              <Label>Updated Value</Label>
+              <Input type="number" min={0} step={0.01} value={form.updatedProjectValue ?? ""} onChange={e => setForm(f => ({ ...f, updatedProjectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter updated value" data-testid="input-updated-project-value" />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Overall Progress: {form.overallProgress ?? 0}%</Label>
@@ -513,6 +522,12 @@ export default function Projects() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Value:</span>
                         <span className="font-medium">{formatCurrency(project.projectValue)}</span>
+                      </div>
+                    )}
+                    {project.updatedProjectValue !== null && project.updatedProjectValue !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Value:</span>
+                        <span className="font-medium">{formatCurrency(project.updatedProjectValue)}</span>
                       </div>
                     )}
                     <div className="pt-1">

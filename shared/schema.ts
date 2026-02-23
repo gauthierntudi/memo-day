@@ -20,6 +20,7 @@ export const projects = pgTable("projects", {
   plannedDeliveryDate: text("planned_delivery_date"),
   updatedDeliveryDate: text("updated_delivery_date"),
   projectValue: real("project_value"),
+  updatedProjectValue: real("updated_project_value"),
   overallProgress: real("overall_progress").default(0),
   status: text("status").notNull().default("active"),
 });

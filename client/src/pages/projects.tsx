@@ -280,6 +280,12 @@ function ProjectFormDialog({
               <Input type="number" min={0} step={0.01} value={form.unbilledAmount ?? ""} onChange={e => setForm(f => ({ ...f, unbilledAmount: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-unbilled-amount" />
             </div>
           </div>
+          {(form.billedAmount != null || form.unbilledAmount != null) && (
+            <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+              <span className="text-sm font-medium">Earned Value (USD)</span>
+              <span className="text-sm font-bold" data-testid="text-earned-value">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((form.billedAmount ?? 0) + (form.unbilledAmount ?? 0))}</span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Actual Direct Cost (USD)</Label>

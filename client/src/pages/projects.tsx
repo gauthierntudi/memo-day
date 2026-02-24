@@ -261,11 +261,11 @@ function ProjectFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Project Value (USD)</Label>
+              <Label>Contract Value (USD)</Label>
               <Input type="number" min={0} step={0.01} value={form.projectValue ?? ""} onChange={e => setForm(f => ({ ...f, projectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter value in USD" data-testid="input-project-value" />
             </div>
             <div className="space-y-2">
-              <Label>Updated Value (USD)</Label>
+              <Label>Updated Contract Value (USD)</Label>
               <Input type="number" min={0} step={0.01} value={form.updatedProjectValue ?? ""} onChange={e => setForm(f => ({ ...f, updatedProjectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter updated value in USD" data-testid="input-updated-project-value" />
             </div>
           </div>
@@ -598,13 +598,13 @@ export default function Projects() {
                     )}
                     {project.projectValue !== null && project.projectValue !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Value:</span>
+                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Contract Value:</span>
                         <span className="font-medium">{formatCurrency(project.projectValue)}</span>
                       </div>
                     )}
                     {project.updatedProjectValue !== null && project.updatedProjectValue !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Value:</span>
+                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Contract Value:</span>
                         <span className="font-medium">{formatCurrency(project.updatedProjectValue)}</span>
                       </div>
                     )}

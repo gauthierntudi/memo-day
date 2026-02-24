@@ -296,6 +296,12 @@ function ProjectFormDialog({
               <Input type="number" min={0} step={0.01} value={form.actualIndirectCost ?? ""} onChange={e => setForm(f => ({ ...f, actualIndirectCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-actual-indirect-cost" />
             </div>
           </div>
+          {(form.actualDirectCost != null || form.actualIndirectCost != null) && (
+            <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+              <span className="text-sm font-medium">Actual Total Cost (USD)</span>
+              <span className="text-sm font-bold" data-testid="text-actual-total-cost">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((form.actualDirectCost ?? 0) + (form.actualIndirectCost ?? 0))}</span>
+            </div>
+          )}
           <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Performance Metrics</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">

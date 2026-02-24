@@ -642,16 +642,16 @@ export default function Projects() {
                                 <span className="text-xs">{hasUnbilled ? formatCurrency(project.unbilledAmount!) : "—"}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Direct Cost:</span>
-                                <span className="font-medium">{hasDirect ? formatCurrency(project.actualDirectCost!) : "—"}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Indirect Cost:</span>
-                                <span className="font-medium">{hasIndirect ? formatCurrency(project.actualIndirectCost!) : "—"}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Actual Total Cost:</span>
+                                <span className="text-muted-foreground font-medium">Actual Total Cost:</span>
                                 <span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between pl-4">
+                                <span className="text-muted-foreground text-xs">Direct Cost:</span>
+                                <span className="text-xs">{hasDirect ? formatCurrency(project.actualDirectCost!) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between pl-4">
+                                <span className="text-muted-foreground text-xs">Indirect Cost:</span>
+                                <span className="text-xs">{hasIndirect ? formatCurrency(project.actualIndirectCost!) : "—"}</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">Cost Variance:</span>

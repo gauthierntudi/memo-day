@@ -174,7 +174,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           <h3 className="text-2xl font-bold text-center mb-3" data-testid="heading-about-us">About Us</h3>
           <div className="space-y-4 text-muted-foreground leading-relaxed">
             <p>
-              <strong className="text-foreground">MEM - DAY ON SITE</strong> is developed by MEM, a construction and development company. With operations spanning multiple sites and jurisdictions, MEM recognized the need for a centralized, digital solution to replace fragmented paper-based reporting and bring structure, accountability, and data-driven insight to daily site management.
+              <strong className="text-foreground">MEM - DAY ON SITE</strong> is developed by MEM. With operations spanning multiple sites and jurisdictions, MEM recognized the need for a centralized, digital solution to replace fragmented paper-based reporting and bring structure, accountability, and data-driven insight to daily site management.
             </p>
             <p>
               This platform was built from the ground up to address the real challenges faced by construction teams every day — from site engineers documenting daily progress to project managers reviewing submissions, and executive leadership tracking performance across the portfolio.

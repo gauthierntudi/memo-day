@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { useState } from "react";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -8,6 +9,7 @@ import {
   Building2,
   Settings,
   LogOut,
+  KeyRound,
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,8 +24,14 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "view_dashboard" },
@@ -38,10 +46,82 @@ const managementItems = [
   { title: "Settings", url: "/settings", icon: Settings, permissions: ["view_users", "view_role_privileges"] },
 ];
 
+function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (newPassword.length < 6) {
+      setError("New password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiRequest("POST", "/api/auth/set-password", { currentPassword, newPassword });
+      toast({ title: "Password updated successfully" });
+      onOpenChange(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      const msg = err.message?.replace(/^\d+:\s*/, "").replace(/[{}"]/g, "").replace(/message:/, "").trim();
+      setError(msg || "Failed to update password");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Change Password</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="current-password">Current Password</Label>
+            <Input id="current-password" data-testid="input-current-password" type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter current password" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New Password</Label>
+            <Input id="new-password" data-testid="input-new-password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="At least 6 characters" required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+            <Input id="confirm-new-password" data-testid="input-confirm-new-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm new password" required />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving} data-testid="button-save-password">
+              {saving ? "Saving..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { hasPermission } = usePermissions();
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const visibleMainItems = mainItems.filter(item => !item.permission || hasPermission(item.permission));
   const visibleMgmtItems = managementItems.filter(item => {
@@ -117,15 +197,21 @@ export function AppSidebar() {
               <p className="text-xs font-medium truncate">{user.name}</p>
               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={logout} className="shrink-0" data-testid="button-logout">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex shrink-0 gap-1">
+              <Button variant="ghost" size="icon" onClick={() => setShowChangePassword(true)} title="Change password" data-testid="button-change-password">
+                <KeyRound className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={logout} title="Log out" className="shrink-0" data-testid="button-logout">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
         <p className="text-xs text-muted-foreground text-center">
           MEM - DAY ON SITE v1.0
         </p>
       </SidebarFooter>
+      <ChangePasswordDialog open={showChangePassword} onOpenChange={setShowChangePassword} />
     </Sidebar>
   );
 }

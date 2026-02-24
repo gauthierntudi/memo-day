@@ -66,6 +66,15 @@ interface ProjectFormData {
   projectValue: number | null;
   updatedProjectValue: number | null;
   overallProgress: number | null;
+  billedAmount: number | null;
+  unbilledAmount: number | null;
+  actualDirectCost: number | null;
+  actualIndirectCost: number | null;
+  delayDays: number | null;
+  schedulePercentage: number | null;
+  performancePercentage: number | null;
+  spiIndex: number | null;
+  cpiIndex: number | null;
   status: string;
 }
 
@@ -85,6 +94,15 @@ const emptyForm: ProjectFormData = {
   projectValue: null,
   updatedProjectValue: null,
   overallProgress: 0,
+  billedAmount: null,
+  unbilledAmount: null,
+  actualDirectCost: null,
+  actualIndirectCost: null,
+  delayDays: null,
+  schedulePercentage: null,
+  performancePercentage: null,
+  spiIndex: null,
+  cpiIndex: null,
   status: "active",
 };
 
@@ -122,6 +140,15 @@ function ProjectFormDialog({
               projectValue: project.projectValue || null,
               updatedProjectValue: project.updatedProjectValue || null,
               overallProgress: project.overallProgress || 0,
+              billedAmount: project.billedAmount ?? null,
+              unbilledAmount: project.unbilledAmount ?? null,
+              actualDirectCost: project.actualDirectCost ?? null,
+              actualIndirectCost: project.actualIndirectCost ?? null,
+              delayDays: project.delayDays ?? null,
+              schedulePercentage: project.schedulePercentage ?? null,
+              performancePercentage: project.performancePercentage ?? null,
+              spiIndex: project.spiIndex ?? null,
+              cpiIndex: project.cpiIndex ?? null,
               status: project.status,
             }
           : { ...emptyForm }
@@ -240,6 +267,52 @@ function ProjectFormDialog({
             <div className="space-y-2">
               <Label>Updated Value (USD)</Label>
               <Input type="number" min={0} step={0.01} value={form.updatedProjectValue ?? ""} onChange={e => setForm(f => ({ ...f, updatedProjectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter updated value in USD" data-testid="input-updated-project-value" />
+            </div>
+          </div>
+          <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Financial Tracking</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Billed Amount (USD)</Label>
+              <Input type="number" min={0} step={0.01} value={form.billedAmount ?? ""} onChange={e => setForm(f => ({ ...f, billedAmount: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-billed-amount" />
+            </div>
+            <div className="space-y-2">
+              <Label>Unbilled Amount (USD)</Label>
+              <Input type="number" min={0} step={0.01} value={form.unbilledAmount ?? ""} onChange={e => setForm(f => ({ ...f, unbilledAmount: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-unbilled-amount" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Actual Direct Cost (USD)</Label>
+              <Input type="number" min={0} step={0.01} value={form.actualDirectCost ?? ""} onChange={e => setForm(f => ({ ...f, actualDirectCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-actual-direct-cost" />
+            </div>
+            <div className="space-y-2">
+              <Label>Actual Indirect Cost (USD)</Label>
+              <Input type="number" min={0} step={0.01} value={form.actualIndirectCost ?? ""} onChange={e => setForm(f => ({ ...f, actualIndirectCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-actual-indirect-cost" />
+            </div>
+          </div>
+          <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Performance Metrics</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label>Delay (Days)</Label>
+              <Input type="number" step={1} value={form.delayDays ?? ""} onChange={e => setForm(f => ({ ...f, delayDays: e.target.value ? Number(e.target.value) : null }))} placeholder="0" data-testid="input-delay-days" />
+            </div>
+            <div className="space-y-2">
+              <Label>Schedule %</Label>
+              <Input type="number" min={0} max={100} step={0.01} value={form.schedulePercentage ?? ""} onChange={e => setForm(f => ({ ...f, schedulePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-schedule-percentage" />
+            </div>
+            <div className="space-y-2">
+              <Label>Performance %</Label>
+              <Input type="number" min={0} max={100} step={0.01} value={form.performancePercentage ?? ""} onChange={e => setForm(f => ({ ...f, performancePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-performance-percentage" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>SPI (Schedule Performance Index)</Label>
+              <Input type="number" min={0} step={0.01} value={form.spiIndex ?? ""} onChange={e => setForm(f => ({ ...f, spiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-spi-index" />
+            </div>
+            <div className="space-y-2">
+              <Label>CPI (Cost Performance Index)</Label>
+              <Input type="number" min={0} step={0.01} value={form.cpiIndex ?? ""} onChange={e => setForm(f => ({ ...f, cpiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-cpi-index" />
             </div>
           </div>
           <div className="space-y-2">
@@ -523,6 +596,105 @@ export default function Projects() {
                         <span className="font-medium">{formatCurrency(project.updatedProjectValue)}</span>
                       </div>
                     )}
+                    {(() => {
+                      const hasBilled = project.billedAmount != null;
+                      const hasUnbilled = project.unbilledAmount != null;
+                      const hasDirect = project.actualDirectCost != null;
+                      const hasIndirect = project.actualIndirectCost != null;
+                      const hasFinancial = hasBilled || hasUnbilled || hasDirect || hasIndirect;
+                      const canComputeWorkPerformed = hasBilled || hasUnbilled;
+                      const canComputeTotalCost = hasDirect || hasIndirect;
+                      const totalWorkPerformed = canComputeWorkPerformed ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;
+                      const actualTotalCost = canComputeTotalCost ? (project.actualDirectCost ?? 0) + (project.actualIndirectCost ?? 0) : null;
+                      const canComputeVariance = totalWorkPerformed != null && actualTotalCost != null;
+                      const costVarianceUsd = canComputeVariance ? actualTotalCost - totalWorkPerformed : null;
+                      const costVariancePct = canComputeVariance && totalWorkPerformed !== 0 ? ((costVarianceUsd!) / totalWorkPerformed) * 100 : null;
+                      const contractAmount = project.updatedProjectValue ?? project.projectValue;
+                      const financialPct = totalWorkPerformed != null && contractAmount != null && contractAmount !== 0 ? (totalWorkPerformed / contractAmount) * 100 : null;
+                      const hasPerformance = project.delayDays != null || project.schedulePercentage != null || project.performancePercentage != null || project.spiIndex != null || project.cpiIndex != null;
+                      return (
+                        <>
+                          {hasFinancial && (
+                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
+                              <p className="text-xs font-semibold text-muted-foreground">Financial</p>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Billed:</span>
+                                <span className="font-medium">{hasBilled ? formatCurrency(project.billedAmount!) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Unbilled:</span>
+                                <span className="font-medium">{hasUnbilled ? formatCurrency(project.unbilledAmount!) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Total Work Performed:</span>
+                                <span className="font-medium">{totalWorkPerformed != null ? formatCurrency(totalWorkPerformed) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Direct Cost:</span>
+                                <span className="font-medium">{hasDirect ? formatCurrency(project.actualDirectCost!) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Indirect Cost:</span>
+                                <span className="font-medium">{hasIndirect ? formatCurrency(project.actualIndirectCost!) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Actual Total Cost:</span>
+                                <span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Cost Variance:</span>
+                                {costVarianceUsd != null ? (
+                                  <span className={`font-medium ${costVarianceUsd > 0 ? "text-red-500" : costVarianceUsd < 0 ? "text-green-600" : ""}`}>
+                                    {formatCurrency(costVarianceUsd)}{costVariancePct != null ? ` (${costVariancePct.toFixed(1)}%)` : ""}
+                                  </span>
+                                ) : (
+                                  <span className="font-medium">—</span>
+                                )}
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Financial %:</span>
+                                <span className="font-medium">{financialPct != null ? `${financialPct.toFixed(1)}%` : "—"}</span>
+                              </div>
+                            </div>
+                          )}
+                          {hasPerformance && (
+                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
+                              <p className="text-xs font-semibold text-muted-foreground">Performance</p>
+                              {project.delayDays != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Delay:</span>
+                                  <span className={`font-medium ${project.delayDays > 0 ? "text-red-500" : ""}`}>{project.delayDays} days</span>
+                                </div>
+                              )}
+                              {project.schedulePercentage != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Schedule %:</span>
+                                  <span className="font-medium">{project.schedulePercentage}%</span>
+                                </div>
+                              )}
+                              {project.performancePercentage != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Performance %:</span>
+                                  <span className="font-medium">{project.performancePercentage}%</span>
+                                </div>
+                              )}
+                              {project.spiIndex != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">SPI:</span>
+                                  <span className={`font-medium ${project.spiIndex < 1 ? "text-red-500" : "text-green-600"}`}>{project.spiIndex.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {project.cpiIndex != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">CPI:</span>
+                                  <span className={`font-medium ${project.cpiIndex < 1 ? "text-red-500" : "text-green-600"}`}>{project.cpiIndex.toFixed(2)}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     <div className="pt-1">
                       <div className="flex justify-between mb-1">
                         <span className="text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Progress:</span>

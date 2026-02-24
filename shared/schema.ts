@@ -22,6 +22,15 @@ export const projects = pgTable("projects", {
   projectValue: doublePrecision("project_value"),
   updatedProjectValue: doublePrecision("updated_project_value"),
   overallProgress: real("overall_progress").default(0),
+  billedAmount: doublePrecision("billed_amount"),
+  unbilledAmount: doublePrecision("unbilled_amount"),
+  actualDirectCost: doublePrecision("actual_direct_cost"),
+  actualIndirectCost: doublePrecision("actual_indirect_cost"),
+  delayDays: real("delay_days"),
+  schedulePercentage: real("schedule_percentage"),
+  performancePercentage: real("performance_percentage"),
+  spiIndex: real("spi_index"),
+  cpiIndex: real("cpi_index"),
   status: text("status").notNull().default("active"),
 });
 

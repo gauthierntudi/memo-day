@@ -626,7 +626,7 @@ export default function Projects() {
                                 <span className="font-medium">{hasUnbilled ? formatCurrency(project.unbilledAmount!) : "—"}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Total Work Performed:</span>
+                                <span className="text-muted-foreground">Earned Value:</span>
                                 <span className="font-medium">{totalWorkPerformed != null ? formatCurrency(totalWorkPerformed) : "—"}</span>
                               </div>
                               <div className="flex justify-between">

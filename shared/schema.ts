@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, date, timestamp, boolean, jsonb, serial, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, date, timestamp, boolean, jsonb, serial, real, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -19,8 +19,8 @@ export const projects = pgTable("projects", {
   startDate: text("start_date"),
   plannedDeliveryDate: text("planned_delivery_date"),
   updatedDeliveryDate: text("updated_delivery_date"),
-  projectValue: real("project_value"),
-  updatedProjectValue: real("updated_project_value"),
+  projectValue: doublePrecision("project_value"),
+  updatedProjectValue: doublePrecision("updated_project_value"),
   overallProgress: real("overall_progress").default(0),
   status: text("status").notNull().default("active"),
 });

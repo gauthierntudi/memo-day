@@ -20,10 +20,11 @@ import WeeklyReport from "@/pages/weekly-report";
 import ExecutiveSummary from "@/pages/executive-summary";
 import SettingsPage from "@/pages/settings";
 import LoginPage from "@/pages/login";
+import LandingPage from "@/pages/landing";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 
 function AccessDenied() {
   return (
@@ -78,6 +79,7 @@ const sidebarStyle = {
 
 function AuthenticatedApp() {
   const { user, isLoading } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
 
   if (isLoading) {
     return (
@@ -88,7 +90,10 @@ function AuthenticatedApp() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    if (showLogin) {
+      return <LoginPage onBack={() => setShowLogin(false)} />;
+    }
+    return <LandingPage onGetStarted={() => setShowLogin(true)} />;
   }
 
   return (

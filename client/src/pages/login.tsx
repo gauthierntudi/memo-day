@@ -6,10 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
-import { HardHat, Lock, Mail, AlertCircle, User, Phone } from "lucide-react";
+import { HardHat, Lock, Mail, AlertCircle, User, Phone, ArrowLeft } from "lucide-react";
 import { ORG_ROLES } from "@shared/schema";
 
-export default function LoginPage() {
+interface LoginPageProps {
+  onBack?: () => void;
+}
+
+export default function LoginPage({ onBack }: LoginPageProps) {
   const { login, loginError, isLoggingIn, register, registerError, isRegistering } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -247,6 +251,16 @@ export default function LoginPage() {
                 </button>
               </p>
             </form>
+          )}
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground mt-4 w-full"
+              data-testid="link-back-to-landing"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to home
+            </button>
           )}
         </CardContent>
       </Card>

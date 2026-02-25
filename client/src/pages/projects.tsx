@@ -619,7 +619,7 @@ export default function Projects() {
                       const totalWorkPerformed = canComputeWorkPerformed ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;
                       const actualTotalCost = canComputeTotalCost ? (project.actualDirectCost ?? 0) + (project.actualIndirectCost ?? 0) : null;
                       const canComputeVariance = totalWorkPerformed != null && actualTotalCost != null;
-                      const costVarianceUsd = canComputeVariance ? actualTotalCost - totalWorkPerformed : null;
+                      const costVarianceUsd = canComputeVariance ? totalWorkPerformed - actualTotalCost : null;
                       const costVariancePct = canComputeVariance && totalWorkPerformed !== 0 ? ((costVarianceUsd!) / totalWorkPerformed) * 100 : null;
                       const contractAmount = project.updatedProjectValue ?? project.projectValue;
                       const financialPct = totalWorkPerformed != null && contractAmount != null && contractAmount !== 0 ? (totalWorkPerformed / contractAmount) * 100 : null;
@@ -656,7 +656,7 @@ export default function Projects() {
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">Cost Variance:</span>
                                 {costVarianceUsd != null ? (
-                                  <span className={`font-medium ${costVarianceUsd > 0 ? "text-red-500" : costVarianceUsd < 0 ? "text-green-600" : ""}`}>
+                                  <span className={`font-medium ${costVarianceUsd > 0 ? "text-green-600" : costVarianceUsd < 0 ? "text-red-500" : ""}`}>
                                     {formatCurrency(costVarianceUsd)}{costVariancePct != null ? ` (${costVariancePct.toFixed(1)}%)` : ""}
                                   </span>
                                 ) : (

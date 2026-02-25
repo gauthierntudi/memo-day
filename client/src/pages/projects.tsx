@@ -188,10 +188,23 @@ function ProjectFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const computedSpi = (form.performancePercentage != null && form.schedulePercentage != null && form.schedulePercentage !== 0)
+      ? form.performancePercentage / form.schedulePercentage : null;
+    const earnedValueForm = (form.billedAmount != null || form.unbilledAmount != null)
+      ? (form.billedAmount ?? 0) + (form.unbilledAmount ?? 0) : null;
+    const actualTotalCostForm = (form.actualDirectCost != null || form.actualIndirectCost != null)
+      ? (form.actualDirectCost ?? 0) + (form.actualIndirectCost ?? 0) : null;
+    const computedCpi = (earnedValueForm != null && actualTotalCostForm != null && actualTotalCostForm !== 0)
+      ? earnedValueForm / actualTotalCostForm : null;
+    const data: ProjectFormData = {
+      ...form,
+      spiIndex: computedSpi ?? form.spiIndex,
+      cpiIndex: computedCpi ?? form.cpiIndex,
+    };
     if (isEditing) {
-      updateMutation.mutate(form);
+      updateMutation.mutate(data);
     } else {
-      createMutation.mutate(form);
+      createMutation.mutate(data);
     }
   };
 
@@ -317,16 +330,42 @@ function ProjectFormDialog({
               <Input type="number" min={0} max={100} step={0.01} value={form.performancePercentage ?? ""} onChange={e => setForm(f => ({ ...f, performancePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-performance-percentage" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>SPI (Schedule Performance Index)</Label>
-              <Input type="number" min={0} step={0.01} value={form.spiIndex ?? ""} onChange={e => setForm(f => ({ ...f, spiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-spi-index" />
-            </div>
-            <div className="space-y-2">
-              <Label>CPI (Cost Performance Index)</Label>
-              <Input type="number" min={0} step={0.01} value={form.cpiIndex ?? ""} onChange={e => setForm(f => ({ ...f, cpiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-cpi-index" />
-            </div>
-          </div>
+          {(() => {
+            const computedSpi = (form.performancePercentage != null && form.schedulePercentage != null && form.schedulePercentage !== 0)
+              ? form.performancePercentage / form.schedulePercentage : null;
+            const earnedValueForm = (form.billedAmount != null || form.unbilledAmount != null)
+              ? (form.billedAmount ?? 0) + (form.unbilledAmount ?? 0) : null;
+            const actualTotalCostForm = (form.actualDirectCost != null || form.actualIndirectCost != null)
+              ? (form.actualDirectCost ?? 0) + (form.actualIndirectCost ?? 0) : null;
+            const computedCpi = (earnedValueForm != null && actualTotalCostForm != null && actualTotalCostForm !== 0)
+              ? earnedValueForm / actualTotalCostForm : null;
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>SPI (Schedule Performance Index)</Label>
+                  {computedSpi != null ? (
+                    <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-spi-index">
+                      <span className={`font-bold text-sm ${computedSpi < 1 ? "text-red-500" : "text-green-600"}`}>{computedSpi.toFixed(2)}</span>
+                      <span className="text-xs text-muted-foreground">(auto-calculated)</span>
+                    </div>
+                  ) : (
+                    <Input type="number" min={0} step={0.01} value={form.spiIndex ?? ""} onChange={e => setForm(f => ({ ...f, spiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-spi-index" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>CPI (Cost Performance Index)</Label>
+                  {computedCpi != null ? (
+                    <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-cpi-index">
+                      <span className={`font-bold text-sm ${computedCpi < 1 ? "text-red-500" : "text-green-600"}`}>{computedCpi.toFixed(2)}</span>
+                      <span className="text-xs text-muted-foreground">(auto-calculated)</span>
+                    </div>
+                  ) : (
+                    <Input type="number" min={0} step={0.01} value={form.cpiIndex ?? ""} onChange={e => setForm(f => ({ ...f, cpiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-cpi-index" />
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           <div className="space-y-2">
             <Label>Overall Progress: {form.overallProgress ?? 0}%</Label>
             <Slider value={[form.overallProgress ?? 0]} onValueChange={v => setForm(f => ({ ...f, overallProgress: v[0] }))} min={0} max={100} step={1} data-testid="slider-overall-progress" />
@@ -623,7 +662,13 @@ export default function Projects() {
                       const costVariancePct = canComputeVariance && totalWorkPerformed !== 0 ? ((costVarianceUsd!) / totalWorkPerformed) * 100 : null;
                       const contractAmount = project.updatedProjectValue ?? project.projectValue;
                       const financialPct = totalWorkPerformed != null && contractAmount != null && contractAmount !== 0 ? (totalWorkPerformed / contractAmount) * 100 : null;
-                      const hasPerformance = project.delayDays != null || project.schedulePercentage != null || project.performancePercentage != null || project.spiIndex != null || project.cpiIndex != null;
+                      const tileComputedSpi = (project.performancePercentage != null && project.schedulePercentage != null && project.schedulePercentage !== 0)
+                        ? project.performancePercentage / project.schedulePercentage : null;
+                      const tileComputedCpi = (totalWorkPerformed != null && actualTotalCost != null && actualTotalCost !== 0)
+                        ? totalWorkPerformed / actualTotalCost : null;
+                      const displaySpi = project.spiIndex ?? tileComputedSpi;
+                      const displayCpi = project.cpiIndex ?? tileComputedCpi;
+                      const hasPerformance = project.delayDays != null || project.schedulePercentage != null || project.performancePercentage != null || displaySpi != null || displayCpi != null;
                       return (
                         <>
                           {hasFinancial && (
@@ -690,16 +735,16 @@ export default function Projects() {
                                   <span className="font-medium">{project.performancePercentage}%</span>
                                 </div>
                               )}
-                              {project.spiIndex != null && (
+                              {displaySpi != null && (
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">SPI:</span>
-                                  <span className={`font-medium ${project.spiIndex < 1 ? "text-red-500" : "text-green-600"}`}>{project.spiIndex.toFixed(2)}</span>
+                                  <span className={`font-medium ${displaySpi < 1 ? "text-red-500" : "text-green-600"}`}>{displaySpi.toFixed(2)}</span>
                                 </div>
                               )}
-                              {project.cpiIndex != null && (
+                              {displayCpi != null && (
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">CPI:</span>
-                                  <span className={`font-medium ${project.cpiIndex < 1 ? "text-red-500" : "text-green-600"}`}>{project.cpiIndex.toFixed(2)}</span>
+                                  <span className={`font-medium ${displayCpi < 1 ? "text-red-500" : "text-green-600"}`}>{displayCpi.toFixed(2)}</span>
                                 </div>
                               )}
                             </div>

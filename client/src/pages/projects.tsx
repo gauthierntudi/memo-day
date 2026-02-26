@@ -402,6 +402,11 @@ function ProjectFormDialog({
                   <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
+                    if (file.size > 1 * 1024 * 1024) {
+                      toast({ title: "File too large", description: "Each photo must be under 1 MB", variant: "destructive" });
+                      e.target.value = "";
+                      return;
+                    }
                     const fd = new FormData();
                     fd.append("photos", file);
                     try {

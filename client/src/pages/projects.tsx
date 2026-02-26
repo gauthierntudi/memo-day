@@ -771,20 +771,40 @@ export default function Projects() {
                           <p className="text-xs font-semibold text-center text-muted-foreground mb-0">Project Status</p>
                           <p className="text-[10px] text-center text-muted-foreground mb-1">Achieved % VS Planned %</p>
                           <svg viewBox="0 0 240 140" className="w-full max-w-[220px] mx-auto">
-                            <path d={arcPath(0, 100)} fill="none" stroke="hsl(var(--muted))" strokeWidth={sw} strokeLinecap="round" />
+                            <defs>
+                              <linearGradient id={`grad-achieved-${project.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#2563eb" />
+                                <stop offset="100%" stopColor="#06b6d4" />
+                              </linearGradient>
+                              <linearGradient id={`grad-planned-${project.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#f59e0b" />
+                                <stop offset="100%" stopColor="#f97316" />
+                              </linearGradient>
+                            </defs>
+                            <path d={arcPath(0, 100)} fill="none" stroke="hsl(var(--muted))" strokeWidth={sw} strokeLinecap="round" opacity={0.5} />
                             {planned > 0 && (
-                              <path d={arcPath(0, Math.min(planned, 100))} fill="none" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth={sw} strokeLinecap="butt" />
+                              <path d={arcPath(0, Math.min(planned, 100))} fill="none" stroke={`url(#grad-planned-${project.id})`} strokeWidth={sw} strokeLinecap="butt" opacity={0.35} />
                             )}
                             {achieved > 0 && (
-                              <path d={arcPath(0, Math.min(achieved, 100))} fill="none" stroke="hsl(var(--foreground) / 0.65)" strokeWidth={sw} strokeLinecap="round" />
+                              <path d={arcPath(0, Math.min(achieved, 100))} fill="none" stroke={`url(#grad-achieved-${project.id})`} strokeWidth={sw} strokeLinecap="round" />
                             )}
-                            <text x={cx} y={cy - 20} textAnchor="middle" className="fill-foreground" style={{ fontSize: "24px", fontWeight: 700 }}>{achieved.toFixed(achieved % 1 === 0 ? 0 : 2)}%</text>
+                            <text x={cx} y={cy - 20} textAnchor="middle" style={{ fontSize: "24px", fontWeight: 700, fill: "#2563eb" }}>{achieved.toFixed(achieved % 1 === 0 ? 0 : 2)}%</text>
                             {planned > 0 && (
-                              <text x={pEndX + (planned > 50 ? 14 : -14)} y={pEndY - 10} textAnchor={planned > 50 ? "start" : "end"} className="fill-muted-foreground" style={{ fontSize: "11px", fontWeight: 600 }}>{planned.toFixed(planned % 1 === 0 ? 0 : 2)}%</text>
+                              <text x={pEndX + (planned > 50 ? 14 : -14)} y={pEndY - 10} textAnchor={planned > 50 ? "start" : "end"} style={{ fontSize: "11px", fontWeight: 600, fill: "#d97706" }}>{planned.toFixed(planned % 1 === 0 ? 0 : 2)}%</text>
                             )}
                             <text x={cx - r} y={cy + 18} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: "10px", fontWeight: 600 }}>0%</text>
                             <text x={cx + r} y={cy + 18} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: "10px", fontWeight: 600 }}>100%</text>
                           </svg>
+                          <div className="flex justify-center gap-4 mt-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
+                              <span className="text-[9px] text-muted-foreground">Achieved</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "linear-gradient(90deg, #f59e0b, #f97316)" }} />
+                              <span className="text-[9px] text-muted-foreground">Planned</span>
+                            </div>
+                          </div>
                         </div>
                       );
                     })()}

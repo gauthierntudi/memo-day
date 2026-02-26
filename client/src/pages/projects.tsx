@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -45,7 +44,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, TrendingUp } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign } from "lucide-react";
 import type { Project, User } from "@shared/schema";
 import { CLIENT_TYPES } from "@shared/schema";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -752,13 +751,44 @@ export default function Projects() {
                         </>
                       );
                     })()}
-                    <div className="pt-1">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Progress:</span>
-                        <span className="font-medium">{project.overallProgress ?? 0}%</span>
-                      </div>
-                      <Progress value={project.overallProgress ?? 0} className="h-1.5" />
-                    </div>
+                    {(() => {
+                      const achieved = project.overallProgress ?? 0;
+                      const planned = project.schedulePercentage ?? 0;
+                      const cx = 120, cy = 100, r = 80, sw = 22;
+                      const pctToAngle = (pct: number) => Math.PI * (1 - Math.min(pct, 100) / 100);
+                      const ptX = (a: number) => cx + r * Math.cos(a);
+                      const ptY = (a: number) => cy - r * Math.sin(a);
+                      const arcPath = (startPct: number, endPct: number) => {
+                        const a1 = pctToAngle(startPct), a2 = pctToAngle(endPct);
+                        const large = (endPct - startPct) > 50 ? 1 : 0;
+                        return `M ${ptX(a1)} ${ptY(a1)} A ${r} ${r} 0 ${large} 0 ${ptX(a2)} ${ptY(a2)}`;
+                      };
+                      const plannedAngle = pctToAngle(Math.min(planned, 100));
+                      const plannedEndX = ptX(plannedAngle);
+                      const plannedEndY = ptY(plannedAngle);
+                      const labelOffsetX = planned > 50 ? 16 : -40;
+                      return (
+                        <div className="pt-2 border-t mt-2" data-testid="chart-progress-gauge">
+                          <p className="text-xs font-semibold text-center text-muted-foreground mb-0">Project Status</p>
+                          <p className="text-[10px] text-center text-muted-foreground mb-1">Achieved % VS Planned %</p>
+                          <svg viewBox="0 0 240 130" className="w-full max-w-[220px] mx-auto">
+                            <path d={arcPath(0, 100)} fill="none" stroke="hsl(var(--muted))" strokeWidth={sw} strokeLinecap="butt" />
+                            {planned > 0 && (
+                              <path d={arcPath(0, Math.min(planned, 100))} fill="none" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth={sw} strokeLinecap="butt" />
+                            )}
+                            {achieved > 0 && (
+                              <path d={arcPath(0, Math.min(achieved, 100))} fill="none" stroke="hsl(var(--foreground) / 0.65)" strokeWidth={sw} strokeLinecap="butt" />
+                            )}
+                            <text x={cx} y={cy - 8} textAnchor="middle" className="fill-foreground" style={{ fontSize: "22px", fontWeight: 700 }}>{achieved.toFixed(achieved % 1 === 0 ? 0 : 2)}%</text>
+                            {planned > 0 && (
+                              <text x={plannedEndX + labelOffsetX} y={plannedEndY - 6} textAnchor={planned > 50 ? "start" : "end"} className="fill-muted-foreground" style={{ fontSize: "11px", fontWeight: 600 }}>{planned.toFixed(planned % 1 === 0 ? 0 : 2)}%</text>
+                            )}
+                            <text x={cx - r - 4} y={cy + 16} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: "10px", fontWeight: 600 }}>0%</text>
+                            <text x={cx + r + 4} y={cy + 16} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: "10px", fontWeight: 600 }}>100%</text>
+                          </svg>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </CardContent>

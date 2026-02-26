@@ -31,6 +31,7 @@ export const projects = pgTable("projects", {
   performancePercentage: real("performance_percentage"),
   spiIndex: real("spi_index"),
   cpiIndex: real("cpi_index"),
+  photos: jsonb("photos").$type<string[]>().default([]),
   status: text("status").notNull().default("active"),
 });
 

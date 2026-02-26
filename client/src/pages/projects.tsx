@@ -44,7 +44,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, ImagePlus, X } from "lucide-react";
 import type { Project, User } from "@shared/schema";
 import { CLIENT_TYPES } from "@shared/schema";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -74,6 +74,7 @@ interface ProjectFormData {
   performancePercentage: number | null;
   spiIndex: number | null;
   cpiIndex: number | null;
+  photos: string[];
   status: string;
 }
 
@@ -102,6 +103,7 @@ const emptyForm: ProjectFormData = {
   performancePercentage: null,
   spiIndex: null,
   cpiIndex: null,
+  photos: [],
   status: "active",
 };
 
@@ -148,6 +150,7 @@ function ProjectFormDialog({
               performancePercentage: project.performancePercentage ?? null,
               spiIndex: project.spiIndex ?? null,
               cpiIndex: project.cpiIndex ?? null,
+              photos: (project.photos as string[]) ?? [],
               status: project.status,
             }
           : { ...emptyForm }
@@ -381,6 +384,40 @@ function ProjectFormDialog({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label>Project Photos (up to 3)</Label>
+            <div className="flex gap-2 flex-wrap">
+              {form.photos.map((url, i) => (
+                <div key={i} className="relative group w-24 h-24 rounded-md overflow-hidden border">
+                  <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, photos: f.photos.filter((_, j) => j !== i) }))} className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`button-remove-photo-${i}`}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {form.photos.length < 3 && (
+                <label className="w-24 h-24 rounded-md border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors" data-testid="button-upload-photo">
+                  <ImagePlus className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const fd = new FormData();
+                    fd.append("photos", file);
+                    try {
+                      const res = await fetch("/api/uploads", { method: "POST", body: fd, credentials: "include" });
+                      if (!res.ok) throw new Error("Upload failed");
+                      const data = await res.json();
+                      setForm(f => ({ ...f, photos: [...f.photos, ...data.urls].slice(0, 3) }));
+                    } catch {
+                      toast({ title: "Upload failed", variant: "destructive" });
+                    }
+                    e.target.value = "";
+                  }} />
+                </label>
+              )}
+            </div>
+          </div>
         </form>
         </ScrollArea>
         <DialogFooter>
@@ -560,6 +597,15 @@ export default function Projects() {
                 </div>
               </CardHeader>
               <CardContent>
+                {((project.photos as string[]) ?? []).length > 0 && (
+                  <div className="flex gap-1.5 mb-3 -mx-1" data-testid={`photos-project-${project.id}`}>
+                    {((project.photos as string[]) ?? []).map((url, i) => (
+                      <div key={i} className="flex-1 rounded-md overflow-hidden" style={{ aspectRatio: "4/3" }}>
+                        <img src={url} alt={`${project.name} photo ${i + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Code:</span>

@@ -807,27 +807,32 @@ export default function Projects() {
                       const planned = project.schedulePercentage ?? 0;
                       const achievedClamped = Math.min(achieved, 100);
                       const plannedClamped = Math.min(planned, 100);
+                      const fmtPct = (v: number) => v.toFixed(v % 1 === 0 ? 0 : 2);
                       return (
                         <div className="pt-2 border-t mt-2" data-testid="chart-progress-gauge">
                           <p className="text-xs font-semibold text-center text-muted-foreground mb-1">Project Status</p>
-                          <div className="px-1 space-y-2">
-                            <div>
-                              <div className="flex justify-between items-center mb-0.5">
-                                <span className="text-[10px] font-medium text-muted-foreground">Achieved</span>
-                                <span className="text-[11px] font-bold" style={{ color: "#2563eb" }}>{achieved.toFixed(achieved % 1 === 0 ? 0 : 2)}%</span>
+                          <div className="px-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <div className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-sm" style={{ background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
+                                <span className="text-[10px] text-muted-foreground">Achieved</span>
+                                <span className="text-[11px] font-bold" style={{ color: "#2563eb" }}>{fmtPct(achieved)}%</span>
                               </div>
-                              <div className="h-3 w-full rounded-full bg-muted/50 overflow-hidden">
-                                <div className="h-full rounded-full transition-all" style={{ width: `${achievedClamped}%`, background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
+                              <div className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full border-2" style={{ borderColor: "#d97706" }} />
+                                <span className="text-[10px] text-muted-foreground">Planned</span>
+                                <span className="text-[11px] font-bold" style={{ color: "#d97706" }}>{fmtPct(planned)}%</span>
                               </div>
                             </div>
-                            <div>
-                              <div className="flex justify-between items-center mb-0.5">
-                                <span className="text-[10px] font-medium text-muted-foreground">Planned</span>
-                                <span className="text-[11px] font-bold" style={{ color: "#d97706" }}>{planned.toFixed(planned % 1 === 0 ? 0 : 2)}%</span>
-                              </div>
-                              <div className="h-3 w-full rounded-full bg-muted/50 overflow-hidden">
-                                <div className="h-full rounded-full transition-all" style={{ width: `${plannedClamped}%`, background: "linear-gradient(90deg, #f59e0b, #f97316)" }} />
-                              </div>
+                            <div className="relative h-4 w-full rounded-full bg-muted/50 overflow-visible">
+                              <div className="absolute inset-y-0 left-0 rounded-full transition-all" style={{ width: `${achievedClamped}%`, background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
+                              {planned > 0 && (
+                                <div className="absolute top-1/2 -translate-y-1/2 w-1 h-6 rounded-sm" style={{ left: `${plannedClamped}%`, marginLeft: "-2px", background: "#d97706" }} />
+                              )}
+                            </div>
+                            <div className="flex justify-between mt-0.5">
+                              <span className="text-[9px] text-muted-foreground">0%</span>
+                              <span className="text-[9px] text-muted-foreground">100%</span>
                             </div>
                           </div>
                         </div>

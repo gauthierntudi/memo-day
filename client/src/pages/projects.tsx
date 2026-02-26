@@ -807,7 +807,7 @@ export default function Projects() {
                       const arcPath = (startPct: number, endPct: number) => {
                         const a1 = pctToAngle(startPct), a2 = pctToAngle(endPct);
                         const large = (endPct - startPct) > 50 ? 1 : 0;
-                        return `M ${ptX(a1)} ${ptY(a1)} A ${r} ${r} 0 ${large} 1 ${ptX(a2)} ${ptY(a2)}`;
+                        return `M ${ptX(a1)} ${ptY(a1)} A ${r} ${r} 0 ${large} 0 ${ptX(a2)} ${ptY(a2)}`;
                       };
                       const plannedAngle = pctToAngle(Math.min(planned, 100));
                       const pEndX = ptX(plannedAngle);

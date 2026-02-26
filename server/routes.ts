@@ -11,6 +11,8 @@ import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import rateLimit from "express-rate-limit";
+import crypto from "crypto";
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -30,11 +32,12 @@ const upload = multer({
   storage: uploadStorage,
   limits: { fileSize: 1 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp|heic)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
+    const allowedExt = /\.(jpg|jpeg|png|gif|webp|heic)$/i;
+    const allowedMime = /^image\/(jpeg|png|gif|webp|heic)/i;
+    if (allowedExt.test(path.extname(file.originalname)) && allowedMime.test(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only image files are allowed"));
+      cb(new Error("Only image files are allowed (jpg, png, gif, webp, heic)"));
     }
   },
 });
@@ -67,6 +70,52 @@ function canAccessProject(allowed: { allProjects: boolean; projectIds: number[] 
   return allowed.projectIds.includes(projectId);
 }
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { message: "Too many login attempts. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: { message: "Too many requests. Please slow down." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+async function requirePermission(req: Request, res: Response, permission: string): Promise<boolean> {
+  const user = await storage.getUser(req.session.userId!);
+  if (!user) { res.status(401).json({ message: "Not authenticated" }); return false; }
+  if (user.appRole === "admin") return true;
+  const rows = await storage.getRolePrivileges();
+  const row = rows.find(r => r.orgRole === user.orgRole);
+  const perms = row ? (row.permissions as string[]) : [];
+  if (!perms.includes(permission)) {
+    res.status(403).json({ message: "You do not have permission to perform this action" });
+    return false;
+  }
+  return true;
+}
+
+function csrfProtection(req: Request, res: Response, next: NextFunction) {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    return next();
+  }
+  const origin = req.get("origin");
+  const host = req.get("host");
+  if (origin) {
+    const originHost = new URL(origin).host;
+    if (originHost !== host) {
+      return res.status(403).json({ message: "Cross-origin request blocked" });
+    }
+  }
+  next();
+}
+
 async function appendDailyReportLog(reportId: number, action: string, userName: string, details?: string) {
   const report = await storage.getDailyReport(reportId);
   if (!report) return;
@@ -85,6 +134,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.use("/api", apiLimiter);
+  app.use("/api", csrfProtection);
 
   app.use("/uploads", requireAuth, express.static(uploadsDir));
 
@@ -109,7 +161,7 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", loginLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
@@ -128,10 +180,16 @@ export async function registerRoutes(
     if (!valid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
-    req.session.userId = user.id;
-    req.session.userEmail = user.email;
-    req.session.userRole = user.appRole;
-    res.json({ id: user.id, name: user.name, email: user.email, appRole: user.appRole, orgRole: user.orgRole });
+    req.session.regenerate((err) => {
+      if (err) return res.status(500).json({ message: "Session error" });
+      req.session.userId = user.id;
+      req.session.userEmail = user.email;
+      req.session.userRole = user.appRole;
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session error" });
+        res.json({ id: user.id, name: user.name, email: user.email, appRole: user.appRole, orgRole: user.orgRole });
+      });
+    });
   });
 
   app.post("/api/auth/logout", (req, res) => {
@@ -181,6 +239,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/projects", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_projects"))) return;
     try {
       const validated = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(validated);
@@ -191,6 +250,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/projects/:id", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_projects"))) return;
     try {
       const partial = insertProjectSchema.partial().parse(req.body);
       const project = await storage.updateProject(Number(req.params.id), partial);
@@ -202,6 +262,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/projects/:id", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_projects"))) return;
     const deleted = await storage.deleteProject(Number(req.params.id));
     if (!deleted) return res.status(404).json({ message: "Project not found" });
     res.json({ message: "Project deleted" });
@@ -233,6 +294,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/daily-reports", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "create_daily_report"))) return;
     try {
       const validated = insertDailyReportSchema.parse(req.body);
       const allowed = await getUserAllowedProjectIds(req.session.userId!);
@@ -250,6 +312,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/daily-reports/:id", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_save_daily_report"))) return;
     try {
       const existing = await storage.getDailyReport(Number(req.params.id));
       if (!existing) return res.status(404).json({ message: "Report not found" });
@@ -270,6 +333,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/daily-reports/:id/submit", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "submit_daily_report"))) return;
     try {
       const report = await storage.getDailyReport(Number(req.params.id));
       if (!report) return res.status(404).json({ message: "Report not found" });
@@ -301,12 +365,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/daily-reports/:id/approve", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "approve_reject_daily_report"))) return;
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
-        return res.status(403).json({ message: "Only Development Managers can approve reports" });
-      }
       const report = await storage.getDailyReport(Number(req.params.id));
       if (!report) return res.status(404).json({ message: "Report not found" });
       const allowed = await getUserAllowedProjectIds(req.session.userId!);
@@ -333,12 +395,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/daily-reports/:id/reject", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "approve_reject_daily_report"))) return;
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
-        return res.status(403).json({ message: "Only Development Managers can reject reports" });
-      }
       const report = await storage.getDailyReport(Number(req.params.id));
       if (!report) return res.status(404).json({ message: "Report not found" });
       const allowed = await getUserAllowedProjectIds(req.session.userId!);
@@ -382,6 +442,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/weekly-plans", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "create_weekly_plan"))) return;
     try {
       const validated = insertWeeklyPlanSchema.parse(req.body);
       const allowed = await getUserAllowedProjectIds(req.session.userId!);
@@ -396,6 +457,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/weekly-plans/:id", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_save_weekly_plan"))) return;
     try {
       const existing = await storage.getWeeklyPlan(Number(req.params.id));
       if (!existing) return res.status(404).json({ message: "Plan not found" });
@@ -413,6 +475,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/weekly-plans/:id/submit", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "submit_weekly_plan"))) return;
     try {
       const plan = await storage.getWeeklyPlan(Number(req.params.id));
       if (!plan) return res.status(404).json({ message: "Plan not found" });
@@ -443,12 +506,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/weekly-plans/:id/approve", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "approve_reject_weekly_plan"))) return;
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
-        return res.status(403).json({ message: "Only Development Managers can approve weekly plans" });
-      }
       const plan = await storage.getWeeklyPlan(Number(req.params.id));
       if (!plan) return res.status(404).json({ message: "Plan not found" });
       const allowed = await getUserAllowedProjectIds(req.session.userId!);
@@ -474,12 +535,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/weekly-plans/:id/reject", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "approve_reject_weekly_plan"))) return;
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
-      if (user.orgRole !== "Development Manager" && user.orgRole !== "Director") {
-        return res.status(403).json({ message: "Only Development Managers can reject weekly plans" });
-      }
       const plan = await storage.getWeeklyPlan(Number(req.params.id));
       if (!plan) return res.status(404).json({ message: "Plan not found" });
       const allowed = await getUserAllowedProjectIds(req.session.userId!);
@@ -501,13 +560,15 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/users", requireAuth, async (_req, res) => {
+  app.get("/api/users", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "view_users"))) return;
     const userList = await storage.getUsers();
     const sanitized = userList.map(({ password, ...rest }) => rest);
     res.json(sanitized);
   });
 
   app.get("/api/users/:id", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "view_users"))) return;
     const user = await storage.getUser(req.params.id as string);
     if (!user) return res.status(404).json({ message: "User not found" });
     const { password, ...rest } = user;
@@ -515,6 +576,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/users", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_users"))) return;
     try {
       const validated = insertUserSchema.parse(req.body);
       const existing = await storage.getUserByEmail(validated.email);
@@ -528,6 +590,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/users/:id", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_users"))) return;
     try {
       const id = req.params.id as string;
       const targetUser = await storage.getUser(id);
@@ -551,6 +614,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/users/:id", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_users"))) return;
     const id = req.params.id as string;
     const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
@@ -563,6 +627,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/users/:id/set-password", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_users"))) return;
     const id = req.params.id as string;
     const { password: newPwd } = req.body;
     if (!newPwd || newPwd.length < 6) {
@@ -584,7 +649,8 @@ export async function registerRoutes(
     res.json({ permissions, projectIds: user.projectIds || [] });
   });
 
-  app.get("/api/role-privileges", requireAuth, async (_req, res) => {
+  app.get("/api/role-privileges", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "view_role_privileges"))) return;
     const rows = await storage.getRolePrivileges();
     const map: Record<string, string[]> = {};
     for (const role of ORG_ROLES) {
@@ -595,6 +661,7 @@ export async function registerRoutes(
   });
 
   app.put("/api/role-privileges", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_role_privileges"))) return;
     const data = req.body as Record<string, string[]>;
     for (const [role, perms] of Object.entries(data)) {
       if (!ORG_ROLES.includes(role as any)) continue;

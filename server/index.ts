@@ -34,19 +34,28 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 const PgSession = connectPgSimple(session);
+const isProduction = process.env.NODE_ENV === "production";
+if (!process.env.SESSION_SECRET) {
+  if (isProduction) {
+    throw new Error("SESSION_SECRET environment variable is required in production");
+  }
+  console.warn("WARNING: SESSION_SECRET not set. Using insecure default for development only.");
+}
 app.use(
   session({
     store: new PgSession({
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || "dayonsite-secret-key",
+    secret: process.env.SESSION_SECRET || "dev-only-insecure-key",
     resave: false,
     saveUninitialized: false,
+    proxy: isProduction,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       sameSite: "lax",
+      secure: isProduction,
     },
   }),
 );
@@ -77,7 +86,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      if (capturedJsonResponse && !isProduction) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

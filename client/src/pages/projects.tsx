@@ -805,55 +805,29 @@ export default function Projects() {
                     {(() => {
                       const achieved = project.overallProgress ?? 0;
                       const planned = project.schedulePercentage ?? 0;
-                      const cx = 120, cy = 110, r = 80, sw = 24;
-                      const pctToAngle = (pct: number) => Math.PI * (1 - Math.min(pct, 100) / 100);
-                      const ptX = (a: number) => cx + r * Math.cos(a);
-                      const ptY = (a: number) => cy - r * Math.sin(a);
-                      const arcPath = (startPct: number, endPct: number) => {
-                        const a1 = pctToAngle(startPct), a2 = pctToAngle(endPct);
-                        const large = (endPct - startPct) > 50 ? 1 : 0;
-                        return `M ${ptX(a1)} ${ptY(a1)} A ${r} ${r} 0 ${large} 0 ${ptX(a2)} ${ptY(a2)}`;
-                      };
-                      const plannedAngle = pctToAngle(Math.min(planned, 100));
-                      const pEndX = ptX(plannedAngle);
-                      const pEndY = ptY(plannedAngle);
+                      const achievedClamped = Math.min(achieved, 100);
+                      const plannedClamped = Math.min(planned, 100);
                       return (
                         <div className="pt-2 border-t mt-2" data-testid="chart-progress-gauge">
-                          <p className="text-xs font-semibold text-center text-muted-foreground mb-0">Project Status</p>
-                          <p className="text-[10px] text-center text-muted-foreground mb-1">Achieved % VS Planned %</p>
-                          <svg viewBox="0 0 240 140" className="w-full max-w-[220px] mx-auto">
-                            <defs>
-                              <linearGradient id={`grad-achieved-${project.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="#2563eb" />
-                                <stop offset="100%" stopColor="#06b6d4" />
-                              </linearGradient>
-                              <linearGradient id={`grad-planned-${project.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="#f59e0b" />
-                                <stop offset="100%" stopColor="#f97316" />
-                              </linearGradient>
-                            </defs>
-                            <path d={arcPath(0, 100)} fill="none" stroke="hsl(var(--muted))" strokeWidth={sw} strokeLinecap="round" opacity={0.5} />
-                            {planned > 0 && (
-                              <path d={arcPath(0, Math.min(planned, 100))} fill="none" stroke={`url(#grad-planned-${project.id})`} strokeWidth={sw} strokeLinecap="butt" opacity={0.35} />
-                            )}
-                            {achieved > 0 && (
-                              <path d={arcPath(0, Math.min(achieved, 100))} fill="none" stroke={`url(#grad-achieved-${project.id})`} strokeWidth={sw} strokeLinecap="round" />
-                            )}
-                            <text x={cx} y={cy - 20} textAnchor="middle" style={{ fontSize: "24px", fontWeight: 700, fill: "#2563eb" }}>{achieved.toFixed(achieved % 1 === 0 ? 0 : 2)}%</text>
-                            {planned > 0 && (
-                              <text x={pEndX + (planned > 50 ? 14 : -14)} y={pEndY - 10} textAnchor={planned > 50 ? "start" : "end"} style={{ fontSize: "11px", fontWeight: 600, fill: "#d97706" }}>{planned.toFixed(planned % 1 === 0 ? 0 : 2)}%</text>
-                            )}
-                            <text x={cx - r} y={cy + 18} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: "10px", fontWeight: 600 }}>0%</text>
-                            <text x={cx + r} y={cy + 18} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: "10px", fontWeight: 600 }}>100%</text>
-                          </svg>
-                          <div className="flex justify-center gap-4 mt-0.5">
-                            <div className="flex items-center gap-1">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
-                              <span className="text-[9px] text-muted-foreground">Achieved</span>
+                          <p className="text-xs font-semibold text-center text-muted-foreground mb-1">Project Status</p>
+                          <div className="px-1 space-y-2">
+                            <div>
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className="text-[10px] font-medium text-muted-foreground">Achieved</span>
+                                <span className="text-[11px] font-bold" style={{ color: "#2563eb" }}>{achieved.toFixed(achieved % 1 === 0 ? 0 : 2)}%</span>
+                              </div>
+                              <div className="h-3 w-full rounded-full bg-muted/50 overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${achievedClamped}%`, background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "linear-gradient(90deg, #f59e0b, #f97316)" }} />
-                              <span className="text-[9px] text-muted-foreground">Planned</span>
+                            <div>
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className="text-[10px] font-medium text-muted-foreground">Planned</span>
+                                <span className="text-[11px] font-bold" style={{ color: "#d97706" }}>{planned.toFixed(planned % 1 === 0 ? 0 : 2)}%</span>
+                              </div>
+                              <div className="h-3 w-full rounded-full bg-muted/50 overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${plannedClamped}%`, background: "linear-gradient(90deg, #f59e0b, #f97316)" }} />
+                              </div>
                             </div>
                           </div>
                         </div>

@@ -138,26 +138,22 @@ export async function registerRoutes(
   app.use("/api", apiLimiter);
   app.use("/api", csrfProtection);
 
-  app.use("/uploads", requireAuth, express.static(uploadsDir));
-
   app.post("/api/uploads", requireAuth, upload.array("photos", 10), (req, res) => {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
       return res.status(400).json({ message: "No files uploaded" });
     }
-    const urls = files.map(f => `/uploads/${f.filename}`);
+    const urls = files.map(f => {
+      const data = fs.readFileSync(f.path);
+      const base64 = data.toString("base64");
+      const mime = f.mimetype || "image/jpeg";
+      fs.unlinkSync(f.path);
+      return `data:${mime};base64,${base64}`;
+    });
     res.json({ urls });
   });
 
-  app.delete("/api/uploads", requireAuth, (req, res) => {
-    const { url } = req.body;
-    if (url && typeof url === "string") {
-      const filename = path.basename(url);
-      const filePath = path.join(uploadsDir, filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
+  app.delete("/api/uploads", requireAuth, (_req, res) => {
     res.json({ success: true });
   });
 

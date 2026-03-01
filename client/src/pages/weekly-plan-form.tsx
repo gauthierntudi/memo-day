@@ -25,12 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ArrowLeft, Save, Send, Plus, Trash2, CalendarRange, Users, Target, Milestone as MilestoneIcon, CheckCircle2, XCircle, Clock, FileText, FilePlus2, Copy } from "lucide-react";
+import { ArrowLeft, Save, Send, Plus, Trash2, CalendarRange, Users, Target, Milestone as MilestoneIcon, CheckCircle2, XCircle, Clock, Copy } from "lucide-react";
 import type { Project, WeeklyPlan, PlannedActivity, PlannedLabour, PlannedSubcontractor, ProductivityTarget, Milestone } from "@shared/schema";
 import { TRADES, PRIORITY_LEVELS } from "@shared/schema";
 
@@ -49,7 +44,6 @@ export default function WeeklyPlanForm() {
   const { hasPermission, projectIds: allowedProjectIds, hasAllProjects } = usePermissions();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [createPopoverOpen, setCreatePopoverOpen] = useState(false);
   const fromPrevious = !isEdit && new URLSearchParams(window.location.search).get("from") === "previous";
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
@@ -107,7 +101,6 @@ export default function WeeklyPlanForm() {
     setNotes("");
     setWeekNumber(prev.weekNumber + 1);
     if (showToast) toast({ title: "Loaded from previous plan", description: `Week ${prev.weekNumber} data copied. Targets reset.` });
-    setCreatePopoverOpen(false);
   };
 
   useEffect(() => {
@@ -243,38 +236,9 @@ export default function WeeklyPlanForm() {
                 </Button>
               )}
               {!isEdit && (
-                <Popover open={createPopoverOpen} onOpenChange={setCreatePopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button disabled={saveMutation.isPending} data-testid="button-create-plan">
-                      <Save className="mr-2 h-4 w-4" /> Create Plan
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-56 p-1.5" data-testid="popover-create-options">
-                    <button
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors text-left"
-                      onClick={() => { setCreatePopoverOpen(false); saveMutation.mutate("draft"); }}
-                      data-testid="button-create-blank"
-                    >
-                      <FilePlus2 className="h-4 w-4 text-muted-foreground" />
-                      Create Blank
-                    </button>
-                    {previousPlanForProject ? (
-                      <button
-                        className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors text-left"
-                        onClick={loadFromPreviousPlan}
-                        data-testid="button-use-previous-plan"
-                      >
-                        <Copy className="h-4 w-4 text-muted-foreground" />
-                        Use Previous Plan (Wk {previousPlanForProject.weekNumber})
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground">
-                        <FileText className="h-4 w-4" />
-                        No previous plan for this project
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
+                <Button onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-create-plan">
+                  <Save className="mr-2 h-4 w-4" /> Create Plan
+                </Button>
               )}
             </>
           )}

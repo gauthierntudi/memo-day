@@ -21,6 +21,7 @@ client/src/
     weekly-plan-form.tsx   - Weekly plan creation with activities, labour, subcontractors, targets, milestones
     weekly-report.tsx      - Auto-generated weekly report with charts comparing plan vs actual
     executive-summary.tsx  - Executive summaries with weekly/monthly/quarterly views
+    projects-overview.tsx  - Portfolio-level KPIs, charts, and performance analysis across all projects
   components/
     app-sidebar.tsx        - Navigation sidebar
     theme-provider.tsx     - Dark/light mode

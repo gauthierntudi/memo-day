@@ -163,6 +163,25 @@ export default function ProjectsOverview() {
         <KpiCard title="Cost Variance" value={fmt$(totalCostVariance)} subtitle={totalCostVariance >= 0 ? "Favorable" : "Unfavorable"} icon={DollarSign} color={totalCostVariance >= 0 ? "#10b981" : "#ef4444"} />
       </div>
 
+      {totalEarnedValue > 0 && (
+        <Card data-testid="kpi-gross-profit">
+          <CardContent className="py-3 px-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg p-2 bg-muted/50">
+                <DollarSign className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Overall Current Gross Profit</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Cost Variance / Earned Value &nbsp;({fmt$(totalCostVariance)} / {fmt$(totalEarnedValue)})</p>
+              </div>
+            </div>
+            <p className={`text-3xl font-bold ${totalCostVariance >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+              {((totalCostVariance / totalEarnedValue) * 100).toFixed(1)}%
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-wrap gap-2 items-center" data-testid="section-health-badges">
         <span className="text-xs font-medium text-muted-foreground mr-1">Performance Indices:</span>
         <HealthBadge label="Avg SPI" value={avgSpi} />

@@ -44,7 +44,7 @@ const mainItems = [
 
 const managementItems = [
   { title: "Projects", url: "/projects", icon: Building2, permission: "view_projects" },
-  { title: "Projects Overview", url: "/projects-overview", icon: PieChart, permission: "view_projects" },
+  { title: "Projects Overview", url: "/projects-overview", icon: PieChart, permission: "view_projects_overview" },
   { title: "Settings", url: "/settings", icon: Settings, permissions: ["view_users", "view_role_privileges"] },
 ];
 

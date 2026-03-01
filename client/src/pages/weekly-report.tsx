@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   BarChart3,
   Users,
@@ -23,6 +24,7 @@ import {
   Clock,
   Target,
   ClipboardList,
+  FileWarning,
 } from "lucide-react";
 import {
   BarChart,
@@ -70,19 +72,25 @@ export default function WeeklyReport() {
     );
   }
 
+  const approvedPlans = plans?.filter(p => p.status === "approved") || [];
+  const approvedReports = reports?.filter(r => r.status === "approved") || [];
+
   const matchedPlan = selectedWeek !== "all"
-    ? plans?.find(p => p.id === Number(selectedWeek))
-    : plans?.filter(p => selectedProject === "all" || p.projectId === Number(selectedProject))
+    ? approvedPlans.find(p => p.id === Number(selectedWeek))
+    : approvedPlans.filter(p => selectedProject === "all" || p.projectId === Number(selectedProject))
         .sort((a, b) => b.weekNumber - a.weekNumber)[0];
 
-  const filteredReports = reports?.filter(r => {
+  const filteredReports = approvedReports.filter(r => {
     if (selectedProject !== "all" && r.projectId !== Number(selectedProject)) return false;
     if (matchedPlan) {
       return r.reportDate >= matchedPlan.weekStartDate && r.reportDate <= matchedPlan.weekEndDate
         && (selectedProject === "all" || r.projectId === matchedPlan.projectId);
     }
     return true;
-  }) || [];
+  });
+
+  const missingPlan = !matchedPlan && selectedProject !== "all";
+  const missingReports = filteredReports.length === 0 && (matchedPlan || selectedProject !== "all");
 
   const totalWorkers = filteredReports.reduce((sum, r) => {
     const labour = r.labourForce as any[];
@@ -155,11 +163,34 @@ export default function WeeklyReport() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Latest Plan</SelectItem>
-              {plans?.map(p => <SelectItem key={p.id} value={String(p.id)}>Week {p.weekNumber}</SelectItem>)}
+              {approvedPlans
+                .filter(p => selectedProject === "all" || p.projectId === Number(selectedProject))
+                .sort((a, b) => b.weekNumber - a.weekNumber)
+                .map(p => {
+                  const proj = projects?.find(pr => pr.id === p.projectId);
+                  return <SelectItem key={p.id} value={String(p.id)}>Week {p.weekNumber}{proj ? ` - ${proj.name}` : ""}</SelectItem>;
+                })}
             </SelectContent>
           </Select>
         </div>
       </div>
+
+      {(missingPlan || missingReports) && (
+        <Alert variant="destructive" data-testid="alert-missing-documents">
+          <FileWarning className="h-4 w-4" />
+          <AlertTitle>Missing Approved Documents</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4 mt-1 space-y-1 text-sm">
+              {missingPlan && (
+                <li>No approved weekly plan found for {projects?.find(p => p.id === Number(selectedProject))?.name || "the selected project"}{matchedPlan ? ` (Week ${matchedPlan.weekNumber})` : ""}. Please ensure a weekly plan has been submitted and approved.</li>
+              )}
+              {missingReports && (
+                <li>No approved daily reports found for {projects?.find(p => p.id === Number(selectedProject))?.name || "the selected project"}{matchedPlan ? ` during Week ${matchedPlan.weekNumber} (${matchedPlan.weekStartDate} to ${matchedPlan.weekEndDate})` : ""}. Please ensure daily reports have been submitted and approved.</li>
+              )}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

@@ -3,7 +3,7 @@ import { pgTable, text, varchar, integer, date, timestamp, boolean, jsonb, seria
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const CLIENT_TYPES = ["Own", "Group", "Non-group"] as const;
+export const CLIENT_TYPES = ["Group", "Non-group", "Own"] as const;
 
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
@@ -207,56 +207,56 @@ export interface Milestone {
 }
 
 export const TRADES = [
-  "Civil Works",
-  "Structural",
-  "Mechanical",
-  "Electrical",
-  "Plumbing",
-  "HVAC",
-  "Finishing",
-  "Painting",
-  "Landscaping",
-  "Waterproofing",
-  "Fire Protection",
   "Carpentry",
-  "Masonry",
-  "Steel Works",
-  "Roofing",
+  "Civil Works",
+  "Electrical",
+  "Finishing",
+  "Fire Protection",
   "Glazing",
-  "Tiling",
+  "HVAC",
   "Insulation",
+  "Landscaping",
+  "Masonry",
+  "Mechanical",
+  "Painting",
+  "Plumbing",
+  "Roofing",
+  "Steel Works",
+  "Structural",
+  "Tiling",
+  "Waterproofing",
 ] as const;
 
 export const WEATHER_CONDITIONS = [
-  "Sunny",
-  "Partly Cloudy",
   "Cloudy",
-  "Light Rain",
-  "Heavy Rain",
-  "Thunderstorm",
-  "Windy",
-  "Fog",
-  "Hot",
   "Cold",
   "Dust Storm",
+  "Fog",
+  "Heavy Rain",
+  "Hot",
+  "Light Rain",
+  "Partly Cloudy",
+  "Sunny",
+  "Thunderstorm",
+  "Windy",
 ] as const;
 
 export const EQUIPMENT_TYPES = [
-  "Excavator",
-  "Bulldozer",
-  "Crane",
-  "Concrete Mixer",
-  "Dump Truck",
-  "Loader",
-  "Compactor",
-  "Generator",
-  "Forklift",
-  "Scaffold",
-  "Pump",
-  "Welding Machine",
-  "Tower Crane",
   "Backhoe",
+  "Bulldozer",
+  "Compactor",
+  "Concrete Mixer",
+  "Crane",
+  "Dump Truck",
+  "Excavator",
+  "Forklift",
+  "Generator",
   "Grader",
+  "Loader",
+  "Pump",
+  "Scaffold",
+  "Tower Crane",
+  "Welding Machine",
 ] as const;
 
 export const EQUIPMENT_STATUS = [
@@ -267,12 +267,12 @@ export const EQUIPMENT_STATUS = [
 ] as const;
 
 export const INCIDENT_TYPES = [
-  "Near Miss",
-  "First Aid",
-  "Medical Treatment",
-  "Lost Time Injury",
-  "Property Damage",
   "Environmental",
+  "First Aid",
+  "Lost Time Injury",
+  "Medical Treatment",
+  "Near Miss",
+  "Property Damage",
   "Safety Compliance",
 ] as const;
 
@@ -284,12 +284,12 @@ export const SEVERITY_LEVELS = [
 ] as const;
 
 export const SECURITY_INCIDENT_TYPES = [
-  "Theft",
-  "Vandalism",
-  "Unauthorized Access",
-  "Property Damage",
-  "Trespassing",
   "Other",
+  "Property Damage",
+  "Theft",
+  "Trespassing",
+  "Unauthorized Access",
+  "Vandalism",
 ] as const;
 
 export const CLEANING_STATUS = [
@@ -300,17 +300,17 @@ export const CLEANING_STATUS = [
 ] as const;
 
 export const MATERIAL_UNITS = [
-  "Cubic Meters",
-  "Tons",
   "Bags",
-  "Pieces",
-  "Meters",
-  "Square Meters",
-  "Liters",
-  "Rolls",
-  "Sheets",
   "Bundles",
+  "Cubic Meters",
+  "Liters",
+  "Meters",
+  "Pieces",
+  "Rolls",
   "Sets",
+  "Sheets",
+  "Square Meters",
+  "Tons",
 ] as const;
 
 export const ACTIVITY_STATUS = [

@@ -203,7 +203,7 @@ export default function ExecutiveSummary() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Projects</SelectItem>
-              {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+              {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button onClick={generatePdf} disabled={generatingPdf} data-testid="button-generate-pdf">

@@ -357,7 +357,7 @@ export default function DailyReportForm() {
                   <Select value={String(projectId)} onValueChange={v => setProjectId(Number(v))}>
                     <SelectTrigger data-testid="select-project"><SelectValue placeholder="Select project" /></SelectTrigger>
                     <SelectContent>
-                      {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).map(p => (
+                      {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map(p => (
                         <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.code})</SelectItem>
                       ))}
                     </SelectContent>
@@ -376,7 +376,7 @@ export default function DailyReportForm() {
                   <Select value={preparedBy} onValueChange={setPreparedBy}>
                     <SelectTrigger data-testid="select-prepared-by"><SelectValue placeholder="Select user" /></SelectTrigger>
                     <SelectContent>
-                      {projectUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}
+                      {[...projectUsers].sort((a, b) => a.name.localeCompare(b.name)).map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -673,7 +673,7 @@ export default function DailyReportForm() {
                           <Label className="text-xs">Reported By</Label>
                           <Select value={inc.reportedBy} onValueChange={v => setSafetyIncidents(a => updateArrayItem(a, i, "reportedBy", v))}>
                             <SelectTrigger data-testid={`select-safety-reported-${i}`}><SelectValue placeholder="Select user" /></SelectTrigger>
-                            <SelectContent>{projectUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}</SelectContent>
+                            <SelectContent>{[...projectUsers].sort((a, b) => a.name.localeCompare(b.name)).map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
                       </div>
@@ -792,7 +792,7 @@ export default function DailyReportForm() {
                           <Label className="text-xs">Reported By</Label>
                           <Select value={inc.reportedBy} onValueChange={v => setSecurityIncidents(a => updateArrayItem(a, i, "reportedBy", v))}>
                             <SelectTrigger data-testid={`select-security-reported-${i}`}><SelectValue placeholder="Select user" /></SelectTrigger>
-                            <SelectContent>{projectUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}</SelectContent>
+                            <SelectContent>{[...projectUsers].sort((a, b) => a.name.localeCompare(b.name)).map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.orgRole})</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
                       </div>

@@ -295,7 +295,7 @@ export default function WeeklyPlanForm() {
               <Select value={String(projectId)} onValueChange={v => setProjectId(Number(v))} disabled={!canEdit}>
                 <SelectTrigger data-testid="select-plan-project"><SelectValue placeholder="Select project" /></SelectTrigger>
                 <SelectContent>
-                  {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).map(p => (
+                  {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map(p => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>

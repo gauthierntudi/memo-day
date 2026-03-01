@@ -698,6 +698,20 @@ export default function Projects() {
                       </div>
                     )}
                     {(() => {
+                      const ev = (project.billedAmount != null || project.unbilledAmount != null)
+                        ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;
+                      const cv = (ev != null && (project.actualDirectCost != null || project.actualIndirectCost != null))
+                        ? ev - ((project.actualDirectCost ?? 0) + (project.actualIndirectCost ?? 0)) : null;
+                      const grossProfit = (cv != null && ev != null && ev !== 0) ? (cv / ev) * 100 : null;
+                      if (grossProfit == null) return null;
+                      return (
+                        <div className="flex justify-between" data-testid={`text-gross-profit-${project.id}`}>
+                          <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Current Gross Profit:</span>
+                          <span className={`font-medium ${grossProfit >= 0 ? "text-green-600" : "text-red-500"}`}>{grossProfit.toFixed(1)}%</span>
+                        </div>
+                      );
+                    })()}
+                    {(() => {
                       const hasBilled = project.billedAmount != null;
                       const hasUnbilled = project.unbilledAmount != null;
                       const hasDirect = project.actualDirectCost != null;

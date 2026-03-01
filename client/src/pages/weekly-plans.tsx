@@ -1,15 +1,18 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CalendarRange, Eye } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, CalendarRange, Eye, FilePlus2, Copy } from "lucide-react";
 import type { WeeklyPlan, Project } from "@shared/schema";
 import { usePermissions } from "@/hooks/use-permissions";
 
 export default function WeeklyPlans() {
   const { hasPermission } = usePermissions();
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const { data: plans, isLoading } = useQuery<WeeklyPlan[]>({
     queryKey: ["/api/weekly-plans"],
   });
@@ -36,11 +39,35 @@ export default function WeeklyPlans() {
           <p className="text-sm text-muted-foreground">{plans?.length || 0} plans total</p>
         </div>
         {hasPermission("create_weekly_plan") && (
-          <Link href="/weekly-plans/new">
-            <Button data-testid="button-new-weekly-plan">
-              <Plus className="mr-2 h-4 w-4" /> New Weekly Plan
-            </Button>
-          </Link>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button data-testid="button-new-weekly-plan">
+                <Plus className="mr-2 h-4 w-4" /> New Weekly Plan
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-1.5" data-testid="popover-new-plan-options">
+              <Link href="/weekly-plans/new">
+                <button
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors text-left"
+                  onClick={() => setPopoverOpen(false)}
+                  data-testid="button-create-blank-plan"
+                >
+                  <FilePlus2 className="h-4 w-4 text-muted-foreground" />
+                  Create Blank
+                </button>
+              </Link>
+              <Link href="/weekly-plans/new?from=previous">
+                <button
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors text-left"
+                  onClick={() => setPopoverOpen(false)}
+                  data-testid="button-create-from-previous"
+                >
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                  Use Previous Plan
+                </button>
+              </Link>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
 

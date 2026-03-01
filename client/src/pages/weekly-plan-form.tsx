@@ -50,6 +50,7 @@ export default function WeeklyPlanForm() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [createPopoverOpen, setCreatePopoverOpen] = useState(false);
+  const fromPrevious = !isEdit && new URLSearchParams(window.location.search).get("from") === "previous";
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
   const { data: existing } = useQuery<WeeklyPlan>({
@@ -95,7 +96,7 @@ export default function WeeklyPlanForm() {
     return projectPlans.length > 0 ? projectPlans[0] : null;
   })();
 
-  const loadFromPreviousPlan = () => {
+  const loadFromPreviousPlan = (showToast = true) => {
     if (!previousPlanForProject) return;
     const prev = previousPlanForProject;
     setPlannedActivities((prev.plannedActivities as PlannedActivity[]).map(a => ({ ...a, targetPercent: 0 })));
@@ -105,9 +106,15 @@ export default function WeeklyPlanForm() {
     setMilestones((prev.milestones as Milestone[]).map(m => ({ ...m, status: "Pending" })));
     setNotes("");
     setWeekNumber(prev.weekNumber + 1);
-    toast({ title: "Loaded from previous plan", description: `Week ${prev.weekNumber} data copied. Targets reset.` });
+    if (showToast) toast({ title: "Loaded from previous plan", description: `Week ${prev.weekNumber} data copied. Targets reset.` });
     setCreatePopoverOpen(false);
   };
+
+  useEffect(() => {
+    if (fromPrevious && projectId && previousPlanForProject) {
+      loadFromPreviousPlan(true);
+    }
+  }, [fromPrevious, projectId, previousPlanForProject]);
 
   const saveMutation = useMutation({
     mutationFn: async (status: string) => {
@@ -210,6 +217,12 @@ export default function WeeklyPlanForm() {
 
   return (
     <div className="p-6 space-y-6" data-testid="weekly-plan-form">
+      {fromPrevious && !projectId && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-2" data-testid="banner-from-previous">
+          <Copy className="h-4 w-4 text-blue-600 shrink-0" />
+          <p className="text-sm text-blue-700 dark:text-blue-300">Select a project below to load data from its most recent weekly plan.</p>
+        </div>
+      )}
       <div className="flex items-center gap-3 flex-wrap">
         <Button variant="ghost" size="icon" onClick={() => navigate("/weekly-plans")} data-testid="button-back">
           <ArrowLeft className="h-4 w-4" />

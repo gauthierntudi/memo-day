@@ -182,6 +182,52 @@ export default function ProjectsOverview() {
         </Card>
       )}
 
+      <Card data-testid="section-portfolio-appreciation" className={overallHealth.bg}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Portfolio Performance Appreciation</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="space-y-2">
+              <h4 className="font-medium">Schedule Performance</h4>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                {avgSpi != null ? (
+                  avgSpi >= 1
+                    ? `The portfolio is performing on or ahead of schedule with an average SPI of ${avgSpi.toFixed(2)}. ${active.length - projectsWithSpi.filter(p => (p.spiIndex ?? 0) < 1).length} out of ${projectsWithSpi.length} tracked projects are meeting schedule targets.`
+                    : `The portfolio is behind schedule with an average SPI of ${avgSpi.toFixed(2)}. ${projectsWithSpi.filter(p => (p.spiIndex ?? 0) < 1).length} out of ${projectsWithSpi.length} tracked projects are falling behind schedule. Immediate attention is needed to recover lost time.`
+                ) : "Insufficient schedule data to assess portfolio schedule performance. Ensure projects have schedule percentages and performance data entered."}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-medium">Cost Performance</h4>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                {avgCpi != null ? (
+                  avgCpi >= 1
+                    ? `The portfolio is under budget with an average CPI of ${avgCpi.toFixed(2)}. Total earned value of ${fmt$(totalEarnedValue)} against actual costs of ${fmt$(totalActualCost)} shows a favorable variance of ${fmt$(totalCostVariance)}.`
+                    : `The portfolio is over budget with an average CPI of ${avgCpi.toFixed(2)}. Total earned value of ${fmt$(totalEarnedValue)} against actual costs of ${fmt$(totalActualCost)} shows an unfavorable variance of ${fmt$(Math.abs(totalCostVariance))}. Cost controls should be reviewed.`
+                ) : "Insufficient cost data to assess portfolio cost performance. Ensure projects have billing and cost data entered."}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-medium">Progress Overview</h4>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                The active portfolio of {active.length} project{active.length !== 1 ? "s" : ""} has an average progress of {avgProgress.toFixed(1)}%{avgSchedule > 0 ? ` against a planned schedule of ${avgSchedule.toFixed(1)}%` : ""}.
+                {completed.length > 0 ? ` ${completed.length} project${completed.length > 1 ? "s have" : " has"} been completed.` : ""}
+                {onHold.length > 0 ? ` ${onHold.length} project${onHold.length > 1 ? "s are" : " is"} currently on hold.` : ""}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-medium">Delays & Risks</h4>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                {delayedProjects.length > 0
+                  ? `${delayedProjects.length} project${delayedProjects.length > 1 ? "s" : ""} reporting delays totaling ${totalDelayDays} days. Projects affected: ${delayedProjects.map(p => p.code || p.name).join(", ")}. Mitigation strategies should be evaluated for critical-path impacts.`
+                  : "No projects are currently reporting delays. Continue monitoring schedule compliance to maintain this positive trend."}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex flex-wrap gap-2 items-center" data-testid="section-health-badges">
         <span className="text-xs font-medium text-muted-foreground mr-1">Performance Indices:</span>
         <HealthBadge label="Avg SPI" value={avgSpi} />
@@ -373,51 +419,6 @@ export default function ProjectsOverview() {
         </Card>
       </div>
 
-      <Card data-testid="section-portfolio-appreciation" className={overallHealth.bg}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Portfolio Performance Appreciation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="space-y-2">
-              <h4 className="font-medium">Schedule Performance</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                {avgSpi != null ? (
-                  avgSpi >= 1
-                    ? `The portfolio is performing on or ahead of schedule with an average SPI of ${avgSpi.toFixed(2)}. ${active.length - projectsWithSpi.filter(p => (p.spiIndex ?? 0) < 1).length} out of ${projectsWithSpi.length} tracked projects are meeting schedule targets.`
-                    : `The portfolio is behind schedule with an average SPI of ${avgSpi.toFixed(2)}. ${projectsWithSpi.filter(p => (p.spiIndex ?? 0) < 1).length} out of ${projectsWithSpi.length} tracked projects are falling behind schedule. Immediate attention is needed to recover lost time.`
-                ) : "Insufficient schedule data to assess portfolio schedule performance. Ensure projects have schedule percentages and performance data entered."}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-medium">Cost Performance</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                {avgCpi != null ? (
-                  avgCpi >= 1
-                    ? `The portfolio is under budget with an average CPI of ${avgCpi.toFixed(2)}. Total earned value of ${fmt$(totalEarnedValue)} against actual costs of ${fmt$(totalActualCost)} shows a favorable variance of ${fmt$(totalCostVariance)}.`
-                    : `The portfolio is over budget with an average CPI of ${avgCpi.toFixed(2)}. Total earned value of ${fmt$(totalEarnedValue)} against actual costs of ${fmt$(totalActualCost)} shows an unfavorable variance of ${fmt$(Math.abs(totalCostVariance))}. Cost controls should be reviewed.`
-                ) : "Insufficient cost data to assess portfolio cost performance. Ensure projects have billing and cost data entered."}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-medium">Progress Overview</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                The active portfolio of {active.length} project{active.length !== 1 ? "s" : ""} has an average progress of {avgProgress.toFixed(1)}%{avgSchedule > 0 ? ` against a planned schedule of ${avgSchedule.toFixed(1)}%` : ""}.
-                {completed.length > 0 ? ` ${completed.length} project${completed.length > 1 ? "s have" : " has"} been completed.` : ""}
-                {onHold.length > 0 ? ` ${onHold.length} project${onHold.length > 1 ? "s are" : " is"} currently on hold.` : ""}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-medium">Delays & Risks</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                {delayedProjects.length > 0
-                  ? `${delayedProjects.length} project${delayedProjects.length > 1 ? "s" : ""} reporting delays totaling ${totalDelayDays} days. Projects affected: ${delayedProjects.map(p => p.code || p.name).join(", ")}. Mitigation strategies should be evaluated for critical-path impacts.`
-                  : "No projects are currently reporting delays. Continue monitoring schedule compliance to maintain this positive trend."}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -111,6 +111,7 @@ export default function ProjectsOverview() {
 
   const currentProjects = all.filter(p => (p.billedAmount != null || p.unbilledAmount != null) && (p.actualDirectCost != null || p.actualIndirectCost != null));
   const totalContractValue = all.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
+  const totalBilled = all.reduce((s, p) => s + (p.billedAmount ?? 0), 0);
   const totalEarnedValue = currentProjects.reduce((s, p) => s + (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0), 0);
   const totalActualCost = currentProjects.reduce((s, p) => s + (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0), 0);
   const totalCostVariance = totalEarnedValue - totalActualCost;

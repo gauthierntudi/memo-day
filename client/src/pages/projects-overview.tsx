@@ -74,7 +74,17 @@ export default function ProjectsOverview() {
   const completed = all.filter(p => p.status === "completed");
   const onHold = all.filter(p => p.status === "on_hold");
 
-  const totalContractValue = all.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
+  const totalBudgetContractValue = all.reduce((s, p) => s + (p.projectValue ?? 0), 0);
+  const totalBudgetedCost = all.reduce((s, p) => s + (p.budgetedCost ?? 0), 0);
+  const hasBudgetData = all.some(p => p.projectValue != null || p.budgetedCost != null);
+  const budgetedGP = totalBudgetContractValue !== 0 ? ((totalBudgetContractValue - totalBudgetedCost) / totalBudgetContractValue) * 100 : null;
+
+  const totalUpdatedContractValue = all.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
+  const totalUpdatedCost = all.reduce((s, p) => s + (p.updatedCost ?? p.budgetedCost ?? 0), 0);
+  const hasUpdatedData = all.some(p => p.updatedProjectValue != null || p.updatedCost != null);
+  const updatedGP = totalUpdatedContractValue !== 0 ? ((totalUpdatedContractValue - totalUpdatedCost) / totalUpdatedContractValue) * 100 : null;
+
+  const totalContractValue = totalUpdatedContractValue;
   const totalBilled = all.reduce((s, p) => s + (p.billedAmount ?? 0), 0);
   const totalUnbilled = all.reduce((s, p) => s + (p.unbilledAmount ?? 0), 0);
   const totalEarnedValue = totalBilled + totalUnbilled;
@@ -82,6 +92,8 @@ export default function ProjectsOverview() {
   const totalIndirectCost = all.reduce((s, p) => s + (p.actualIndirectCost ?? 0), 0);
   const totalActualCost = totalDirectCost + totalIndirectCost;
   const totalCostVariance = totalEarnedValue - totalActualCost;
+  const hasCurrentData = totalEarnedValue > 0 || totalActualCost > 0;
+  const currentGP = totalEarnedValue !== 0 ? ((totalEarnedValue - totalActualCost) / totalEarnedValue) * 100 : null;
 
   const projectsWithSpi = active.filter(p => p.spiIndex != null);
   const projectsWithCpi = active.filter(p => p.cpiIndex != null);
@@ -163,23 +175,72 @@ export default function ProjectsOverview() {
         <KpiCard title="Cost Variance" value={fmt$(totalCostVariance)} subtitle={totalCostVariance >= 0 ? "Favorable" : "Unfavorable"} icon={DollarSign} color={totalCostVariance >= 0 ? "#10b981" : "#ef4444"} />
       </div>
 
-      {totalEarnedValue > 0 && (
-        <Card data-testid="kpi-gross-profit">
-          <CardContent className="py-3 px-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg p-2 bg-muted/50">
-                <DollarSign className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Overall Current Gross Profit</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Cost Variance / Earned Value &nbsp;({fmt$(totalCostVariance)} / {fmt$(totalEarnedValue)})</p>
-              </div>
-            </div>
-            <p className={`text-3xl font-bold ${totalCostVariance >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-              {((totalCostVariance / totalEarnedValue) * 100).toFixed(1)}%
-            </p>
-          </CardContent>
-        </Card>
+      {(hasBudgetData || hasUpdatedData || hasCurrentData) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="section-gross-profit-cards">
+          {hasBudgetData && (
+            <Card data-testid="kpi-budget-gp">
+              <CardContent className="py-3 px-4 space-y-2">
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Budget</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Contract Value:</span>
+                  <span className="font-medium">{fmt$(totalBudgetContractValue)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Budgeted Cost:</span>
+                  <span className="font-medium">{fmt$(totalBudgetedCost)}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t pt-1">
+                  <span className="text-muted-foreground font-medium">Gross Profit:</span>
+                  <span className={`text-lg font-bold ${budgetedGP != null && budgetedGP >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                    {budgetedGP != null ? `${budgetedGP.toFixed(1)}%` : "—"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {hasUpdatedData && (
+            <Card data-testid="kpi-updated-gp">
+              <CardContent className="py-3 px-4 space-y-2">
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Updated Situation</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Contract Value:</span>
+                  <span className="font-medium">{fmt$(totalUpdatedContractValue)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cost:</span>
+                  <span className="font-medium">{fmt$(totalUpdatedCost)}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t pt-1">
+                  <span className="text-muted-foreground font-medium">Gross Profit:</span>
+                  <span className={`text-lg font-bold ${updatedGP != null && updatedGP >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                    {updatedGP != null ? `${updatedGP.toFixed(1)}%` : "—"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {hasCurrentData && (
+            <Card data-testid="kpi-current-gp">
+              <CardContent className="py-3 px-4 space-y-2">
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Current Situation</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Earned Value:</span>
+                  <span className="font-medium">{fmt$(totalEarnedValue)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Actual Total Cost:</span>
+                  <span className="font-medium">{fmt$(totalActualCost)}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t pt-1">
+                  <span className="text-muted-foreground font-medium">Gross Profit:</span>
+                  <span className={`text-lg font-bold ${currentGP != null && currentGP >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                    {currentGP != null ? `${currentGP.toFixed(1)}%` : "—"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       <Card data-testid="section-portfolio-appreciation" className={overallHealth.bg}>

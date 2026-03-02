@@ -694,10 +694,6 @@ export default function Projects() {
                     <span className="text-muted-foreground">Client Type:</span>
                     <Badge variant="outline" className="text-xs">{project.clientType || "Own"}</Badge>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Contractor:</span>
-                    <span className="font-medium">{project.contractor}</span>
-                  </div>
                   {(() => {
                     const assignedPMs = getAssignedUsersByRole(project.id, "Project Manager");
                     const assignedDMs = getAssignedUsersByRole(project.id, "Development Manager");

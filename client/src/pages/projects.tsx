@@ -727,67 +727,97 @@ export default function Projects() {
                         <span className="font-medium">{project.updatedDeliveryDate}</span>
                       </div>
                     )}
-                    {project.projectValue !== null && project.projectValue !== undefined && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Contract Value:</span>
-                        <span className="font-medium">{formatCurrency(project.projectValue)}</span>
-                      </div>
-                    )}
-                    {project.updatedProjectValue !== null && project.updatedProjectValue !== undefined && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Contract Value:</span>
-                        <span className="font-medium">{formatCurrency(project.updatedProjectValue)}</span>
-                      </div>
-                    )}
-                    {project.budgetedCost != null && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Budgeted Cost:</span>
-                        <span className="font-medium">{formatCurrency(project.budgetedCost)}</span>
-                      </div>
-                    )}
-                    {project.updatedCost != null && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Cost:</span>
-                        <span className="font-medium">{formatCurrency(project.updatedCost)}</span>
-                      </div>
-                    )}
                     {(() => {
+                      const hasBudget = project.projectValue != null || project.budgetedCost != null;
                       const budgetedGP = (project.projectValue != null && project.budgetedCost != null && project.projectValue !== 0)
                         ? ((project.projectValue - project.budgetedCost) / project.projectValue) * 100 : null;
+
+                      const hasUpdated = project.updatedProjectValue != null || project.updatedCost != null;
                       const updatedCV = project.updatedProjectValue ?? project.projectValue;
                       const updatedC = project.updatedCost ?? project.budgetedCost;
-                      const updatedGP = (updatedCV != null && updatedC != null && updatedCV !== 0)
+                      const updatedGP = (hasUpdated && updatedCV != null && updatedC != null && updatedCV !== 0)
                         ? ((updatedCV - updatedC) / updatedCV) * 100 : null;
-                      if (budgetedGP == null && updatedGP == null) return null;
+
+                      const ev = (project.billedAmount != null || project.unbilledAmount != null)
+                        ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;
+                      const actualTotalCost = (project.actualDirectCost != null || project.actualIndirectCost != null)
+                        ? (project.actualDirectCost ?? 0) + (project.actualIndirectCost ?? 0) : null;
+                      const hasCurrent = ev != null || actualTotalCost != null;
+                      const currentGP = (ev != null && actualTotalCost != null && ev !== 0)
+                        ? ((ev - actualTotalCost) / ev) * 100 : null;
+
                       return (
                         <>
-                          {budgetedGP != null && (
-                            <div className="flex justify-between" data-testid={`text-budgeted-gp-${project.id}`}>
-                              <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Budgeted Gross Profit:</span>
-                              <span className={`font-medium ${budgetedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{budgetedGP.toFixed(1)}%</span>
+                          {hasBudget && (
+                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
+                              <p className="text-xs font-semibold text-muted-foreground">Budget</p>
+                              {project.projectValue != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Contract Value:</span>
+                                  <span className="font-medium">{formatCurrency(project.projectValue)}</span>
+                                </div>
+                              )}
+                              {project.budgetedCost != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Budgeted Cost:</span>
+                                  <span className="font-medium">{formatCurrency(project.budgetedCost)}</span>
+                                </div>
+                              )}
+                              {budgetedGP != null && (
+                                <div className="flex justify-between" data-testid={`text-budgeted-gp-${project.id}`}>
+                                  <span className="text-muted-foreground">Gross Profit:</span>
+                                  <span className={`font-medium ${budgetedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{budgetedGP.toFixed(1)}%</span>
+                                </div>
+                              )}
                             </div>
                           )}
-                          {updatedGP != null && (
-                            <div className="flex justify-between" data-testid={`text-updated-gp-${project.id}`}>
-                              <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Gross Profit:</span>
-                              <span className={`font-medium ${updatedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{updatedGP.toFixed(1)}%</span>
+                          {hasUpdated && (
+                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
+                              <p className="text-xs font-semibold text-muted-foreground">Updated Situation</p>
+                              {updatedCV != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Contract Value:</span>
+                                  <span className="font-medium">{formatCurrency(updatedCV)}</span>
+                                </div>
+                              )}
+                              {updatedC != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Cost:</span>
+                                  <span className="font-medium">{formatCurrency(updatedC)}</span>
+                                </div>
+                              )}
+                              {updatedGP != null && (
+                                <div className="flex justify-between" data-testid={`text-updated-gp-${project.id}`}>
+                                  <span className="text-muted-foreground">Gross Profit:</span>
+                                  <span className={`font-medium ${updatedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{updatedGP.toFixed(1)}%</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {hasCurrent && (
+                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
+                              <p className="text-xs font-semibold text-muted-foreground">Current Situation</p>
+                              {ev != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Contract Value (Earned):</span>
+                                  <span className="font-medium">{formatCurrency(ev)}</span>
+                                </div>
+                              )}
+                              {actualTotalCost != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Actual Total Cost:</span>
+                                  <span className="font-medium">{formatCurrency(actualTotalCost)}</span>
+                                </div>
+                              )}
+                              {currentGP != null && (
+                                <div className="flex justify-between" data-testid={`text-gross-profit-${project.id}`}>
+                                  <span className="text-muted-foreground">Gross Profit:</span>
+                                  <span className={`font-medium ${currentGP >= 0 ? "text-green-600" : "text-red-500"}`}>{currentGP.toFixed(1)}%</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </>
-                      );
-                    })()}
-                    {(() => {
-                      const ev = (project.billedAmount != null || project.unbilledAmount != null)
-                        ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;
-                      const cv = (ev != null && (project.actualDirectCost != null || project.actualIndirectCost != null))
-                        ? ev - ((project.actualDirectCost ?? 0) + (project.actualIndirectCost ?? 0)) : null;
-                      const grossProfit = (cv != null && ev != null && ev !== 0) ? (cv / ev) * 100 : null;
-                      if (grossProfit == null) return null;
-                      return (
-                        <div className="flex justify-between" data-testid={`text-gross-profit-${project.id}`}>
-                          <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Current Gross Profit:</span>
-                          <span className={`font-medium ${grossProfit >= 0 ? "text-green-600" : "text-red-500"}`}>{grossProfit.toFixed(1)}%</span>
-                        </div>
                       );
                     })()}
                     {(() => {

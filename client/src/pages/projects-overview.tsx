@@ -201,7 +201,7 @@ export default function ProjectsOverview() {
           {hasUpdatedData && (
             <Card data-testid="kpi-updated-gp">
               <CardContent className="py-3 px-4 space-y-2">
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Updated Situation</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Updated Situation (At Completion)</p>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Contract Value:</span>
                   <span className="font-medium">{fmt$(totalUpdatedContractValue)}</span>
@@ -228,7 +228,7 @@ export default function ProjectsOverview() {
                   <span className="font-medium">{fmt$(totalEarnedValue)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Actual Total Cost:</span>
+                  <span className="text-muted-foreground">Cost:</span>
                   <span className="font-medium">{fmt$(totalActualCost)}</span>
                 </div>
                 <div className="flex justify-between text-sm border-t pt-1">

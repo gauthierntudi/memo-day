@@ -486,6 +486,7 @@ export default function Projects() {
   const canEditProjects = hasPermission("edit_projects");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
+  const [projectFilter, setProjectFilter] = useState("all");
 
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -573,25 +574,48 @@ export default function Projects() {
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">Manage your construction projects</p>
         </div>
-        {canEditProjects && (
-          <Button onClick={openAddDialog} data-testid="button-add-project">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Project
-          </Button>
-        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-[160px]" data-testid="select-project-filter">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="Own">Own</SelectItem>
+              <SelectItem value="Group">Group</SelectItem>
+              <SelectItem value="Non-group">Non-group</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          {canEditProjects && (
+            <Button onClick={openAddDialog} data-testid="button-add-project">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Project
+            </Button>
+          )}
+        </div>
       </div>
 
-      {!projects || projects.length === 0 ? (
+      {(() => {
+        const filtered = (projects ?? []).filter(p => {
+          if (projectFilter === "all") return true;
+          if (projectFilter === "Own" || projectFilter === "Group" || projectFilter === "Non-group") return p.clientType === projectFilter;
+          if (projectFilter === "active" || projectFilter === "completed") return p.status === projectFilter;
+          return true;
+        });
+        if (filtered.length === 0) return (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground/40 mb-4" />
-            <p className="text-muted-foreground mb-2">No projects added yet</p>
-            <p className="text-sm text-muted-foreground mb-4">Add your first construction project to get started</p>
+            <p className="text-muted-foreground mb-2">{projects && projects.length > 0 ? "No projects match the selected filter" : "No projects added yet"}</p>
+            <p className="text-sm text-muted-foreground mb-4">{projects && projects.length > 0 ? "Try selecting a different filter" : "Add your first construction project to get started"}</p>
           </CardContent>
         </Card>
-      ) : (
+        );
+        return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map(project => (
+          {filtered.map(project => (
             <Card key={project.id} data-testid={`card-project-${project.id}`}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
@@ -967,7 +991,8 @@ export default function Projects() {
             </Card>
           ))}
         </div>
-      )}
+        );
+      })()}
 
       <ProjectFormDialog project={editingProject} open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>

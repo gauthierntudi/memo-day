@@ -67,6 +67,8 @@ interface ProjectFormData {
   overallProgress: number | null;
   billedAmount: number | null;
   unbilledAmount: number | null;
+  budgetedCost: number | null;
+  updatedCost: number | null;
   actualDirectCost: number | null;
   actualIndirectCost: number | null;
   delayDays: number | null;
@@ -96,6 +98,8 @@ const emptyForm: ProjectFormData = {
   overallProgress: 0,
   billedAmount: null,
   unbilledAmount: null,
+  budgetedCost: null,
+  updatedCost: null,
   actualDirectCost: null,
   actualIndirectCost: null,
   delayDays: null,
@@ -143,6 +147,8 @@ function ProjectFormDialog({
               overallProgress: project.overallProgress || 0,
               billedAmount: project.billedAmount ?? null,
               unbilledAmount: project.unbilledAmount ?? null,
+              budgetedCost: project.budgetedCost ?? null,
+              updatedCost: project.updatedCost ?? null,
               actualDirectCost: project.actualDirectCost ?? null,
               actualIndirectCost: project.actualIndirectCost ?? null,
               delayDays: project.delayDays ?? null,
@@ -284,6 +290,42 @@ function ProjectFormDialog({
               <Input type="number" min={0} step={0.01} value={form.updatedProjectValue ?? ""} onChange={e => setForm(f => ({ ...f, updatedProjectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter updated value in USD" data-testid="input-updated-project-value" />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Budgeted Cost (USD)</Label>
+              <Input type="number" min={0} step={0.01} value={form.budgetedCost ?? ""} onChange={e => setForm(f => ({ ...f, budgetedCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-budgeted-cost" />
+            </div>
+            <div className="space-y-2">
+              <Label>Updated Cost (USD)</Label>
+              <Input type="number" min={0} step={0.01} value={form.updatedCost ?? ""} onChange={e => setForm(f => ({ ...f, updatedCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-updated-cost" />
+            </div>
+          </div>
+          {(() => {
+            const budgetedGP = (form.projectValue != null && form.budgetedCost != null && form.projectValue !== 0)
+              ? ((form.projectValue - form.budgetedCost) / form.projectValue) * 100 : null;
+            const updatedGP = (() => {
+              const cv = form.updatedProjectValue ?? form.projectValue;
+              const uc = form.updatedCost ?? form.budgetedCost;
+              return (cv != null && uc != null && cv !== 0) ? ((cv - uc) / cv) * 100 : null;
+            })();
+            if (budgetedGP == null && updatedGP == null) return null;
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                {budgetedGP != null && (
+                  <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+                    <span className="text-sm font-medium">Budgeted Gross Profit</span>
+                    <span className={`text-sm font-bold ${budgetedGP >= 0 ? "text-green-600" : "text-red-500"}`} data-testid="text-budgeted-gross-profit">{budgetedGP.toFixed(1)}%</span>
+                  </div>
+                )}
+                {updatedGP != null && (
+                  <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+                    <span className="text-sm font-medium">Updated Gross Profit</span>
+                    <span className={`text-sm font-bold ${updatedGP >= 0 ? "text-green-600" : "text-red-500"}`} data-testid="text-updated-gross-profit">{updatedGP.toFixed(1)}%</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Financial Tracking</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -697,6 +739,43 @@ export default function Projects() {
                         <span className="font-medium">{formatCurrency(project.updatedProjectValue)}</span>
                       </div>
                     )}
+                    {project.budgetedCost != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Budgeted Cost:</span>
+                        <span className="font-medium">{formatCurrency(project.budgetedCost)}</span>
+                      </div>
+                    )}
+                    {project.updatedCost != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Cost:</span>
+                        <span className="font-medium">{formatCurrency(project.updatedCost)}</span>
+                      </div>
+                    )}
+                    {(() => {
+                      const budgetedGP = (project.projectValue != null && project.budgetedCost != null && project.projectValue !== 0)
+                        ? ((project.projectValue - project.budgetedCost) / project.projectValue) * 100 : null;
+                      const updatedCV = project.updatedProjectValue ?? project.projectValue;
+                      const updatedC = project.updatedCost ?? project.budgetedCost;
+                      const updatedGP = (updatedCV != null && updatedC != null && updatedCV !== 0)
+                        ? ((updatedCV - updatedC) / updatedCV) * 100 : null;
+                      if (budgetedGP == null && updatedGP == null) return null;
+                      return (
+                        <>
+                          {budgetedGP != null && (
+                            <div className="flex justify-between" data-testid={`text-budgeted-gp-${project.id}`}>
+                              <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Budgeted Gross Profit:</span>
+                              <span className={`font-medium ${budgetedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{budgetedGP.toFixed(1)}%</span>
+                            </div>
+                          )}
+                          {updatedGP != null && (
+                            <div className="flex justify-between" data-testid={`text-updated-gp-${project.id}`}>
+                              <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Updated Gross Profit:</span>
+                              <span className={`font-medium ${updatedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{updatedGP.toFixed(1)}%</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     {(() => {
                       const ev = (project.billedAmount != null || project.unbilledAmount != null)
                         ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;

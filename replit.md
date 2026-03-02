@@ -65,3 +65,4 @@ shared/
 ## Database
 PostgreSQL with tables: projects, daily_reports, weekly_plans, users
 JSONB columns used for arrays (work_activities, labour_force, subcontractors, etc.)
+New columns: `budgeted_cost`, `updated_cost` on projects table for cost planning; Budgeted GP = (Contract Value - Budgeted Cost) / Contract Value; Updated GP = (Updated Contract Value - Updated Cost) / Updated Contract Value

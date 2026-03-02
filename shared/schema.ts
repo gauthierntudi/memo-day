@@ -24,6 +24,8 @@ export const projects = pgTable("projects", {
   overallProgress: real("overall_progress").default(0),
   billedAmount: doublePrecision("billed_amount"),
   unbilledAmount: doublePrecision("unbilled_amount"),
+  budgetedCost: doublePrecision("budgeted_cost"),
+  updatedCost: doublePrecision("updated_cost"),
   actualDirectCost: doublePrecision("actual_direct_cost"),
   actualIndirectCost: doublePrecision("actual_indirect_cost"),
   delayDays: real("delay_days"),

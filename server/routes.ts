@@ -85,6 +85,7 @@ const apiLimiter = rateLimit({
   message: { message: "Too many requests. Please slow down." },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 async function requirePermission(req: Request, res: Response, permission: string): Promise<boolean> {

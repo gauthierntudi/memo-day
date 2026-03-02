@@ -74,15 +74,34 @@ export default function ProjectsOverview() {
   const completed = all.filter(p => p.status === "completed");
   const onHold = all.filter(p => p.status === "on_hold");
 
+  const owned = all.filter(p => p.clientType === "Own");
+  const external = all.filter(p => p.clientType !== "Own");
+
+  function calcGP(cv: number, cost: number) {
+    return cv !== 0 ? ((cv - cost) / cv) * 100 : null;
+  }
+
   const totalBudgetContractValue = all.reduce((s, p) => s + (p.projectValue ?? 0), 0);
   const totalBudgetedCost = all.reduce((s, p) => s + (p.budgetedCost ?? 0), 0);
   const hasBudgetData = all.some(p => p.projectValue != null || p.budgetedCost != null);
-  const budgetedGP = totalBudgetContractValue !== 0 ? ((totalBudgetContractValue - totalBudgetedCost) / totalBudgetContractValue) * 100 : null;
+  const budgetedGP = calcGP(totalBudgetContractValue, totalBudgetedCost);
+  const ownBudgetCV = owned.reduce((s, p) => s + (p.projectValue ?? 0), 0);
+  const ownBudgetCost = owned.reduce((s, p) => s + (p.budgetedCost ?? 0), 0);
+  const ownBudgetGP = calcGP(ownBudgetCV, ownBudgetCost);
+  const extBudgetCV = external.reduce((s, p) => s + (p.projectValue ?? 0), 0);
+  const extBudgetCost = external.reduce((s, p) => s + (p.budgetedCost ?? 0), 0);
+  const extBudgetGP = calcGP(extBudgetCV, extBudgetCost);
 
   const totalUpdatedContractValue = all.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
   const totalUpdatedCost = all.reduce((s, p) => s + (p.updatedCost ?? p.budgetedCost ?? 0), 0);
   const hasUpdatedData = all.some(p => p.updatedProjectValue != null || p.updatedCost != null);
-  const updatedGP = totalUpdatedContractValue !== 0 ? ((totalUpdatedContractValue - totalUpdatedCost) / totalUpdatedContractValue) * 100 : null;
+  const updatedGP = calcGP(totalUpdatedContractValue, totalUpdatedCost);
+  const ownUpdCV = owned.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
+  const ownUpdCost = owned.reduce((s, p) => s + (p.updatedCost ?? p.budgetedCost ?? 0), 0);
+  const ownUpdGP = calcGP(ownUpdCV, ownUpdCost);
+  const extUpdCV = external.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
+  const extUpdCost = external.reduce((s, p) => s + (p.updatedCost ?? p.budgetedCost ?? 0), 0);
+  const extUpdGP = calcGP(extUpdCV, extUpdCost);
 
   const totalContractValue = totalUpdatedContractValue;
   const totalBilled = all.reduce((s, p) => s + (p.billedAmount ?? 0), 0);
@@ -93,7 +112,13 @@ export default function ProjectsOverview() {
   const totalActualCost = totalDirectCost + totalIndirectCost;
   const totalCostVariance = totalEarnedValue - totalActualCost;
   const hasCurrentData = totalEarnedValue > 0 || totalActualCost > 0;
-  const currentGP = totalEarnedValue !== 0 ? ((totalEarnedValue - totalActualCost) / totalEarnedValue) * 100 : null;
+  const currentGP = calcGP(totalEarnedValue, totalActualCost);
+  const ownCurEV = owned.reduce((s, p) => s + (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0), 0);
+  const ownCurCost = owned.reduce((s, p) => s + (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0), 0);
+  const ownCurGP = calcGP(ownCurEV, ownCurCost);
+  const extCurEV = external.reduce((s, p) => s + (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0), 0);
+  const extCurCost = external.reduce((s, p) => s + (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0), 0);
+  const extCurGP = calcGP(extCurEV, extCurCost);
 
   const projectsWithSpi = active.filter(p => p.spiIndex != null);
   const projectsWithCpi = active.filter(p => p.cpiIndex != null);
@@ -195,6 +220,18 @@ export default function ProjectsOverview() {
                     {budgetedGP != null ? `${budgetedGP.toFixed(1)}%` : "—"}
                   </span>
                 </div>
+                {owned.length > 0 && ownBudgetCV > 0 && (
+                  <div className="flex justify-between text-xs pl-2">
+                    <span className="text-muted-foreground">Own Projects:</span>
+                    <span className={ownBudgetGP != null && ownBudgetGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownBudgetGP != null ? `${ownBudgetGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                )}
+                {external.length > 0 && extBudgetCV > 0 && (
+                  <div className="flex justify-between text-xs pl-2">
+                    <span className="text-muted-foreground">External Clients:</span>
+                    <span className={extBudgetGP != null && extBudgetGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extBudgetGP != null ? `${extBudgetGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -216,6 +253,18 @@ export default function ProjectsOverview() {
                     {updatedGP != null ? `${updatedGP.toFixed(1)}%` : "—"}
                   </span>
                 </div>
+                {owned.length > 0 && ownUpdCV > 0 && (
+                  <div className="flex justify-between text-xs pl-2">
+                    <span className="text-muted-foreground">Own Projects:</span>
+                    <span className={ownUpdGP != null && ownUpdGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownUpdGP != null ? `${ownUpdGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                )}
+                {external.length > 0 && extUpdCV > 0 && (
+                  <div className="flex justify-between text-xs pl-2">
+                    <span className="text-muted-foreground">External Clients:</span>
+                    <span className={extUpdGP != null && extUpdGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extUpdGP != null ? `${extUpdGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -237,6 +286,18 @@ export default function ProjectsOverview() {
                     {currentGP != null ? `${currentGP.toFixed(1)}%` : "—"}
                   </span>
                 </div>
+                {owned.length > 0 && ownCurEV > 0 && (
+                  <div className="flex justify-between text-xs pl-2">
+                    <span className="text-muted-foreground">Own Projects:</span>
+                    <span className={ownCurGP != null && ownCurGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownCurGP != null ? `${ownCurGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                )}
+                {external.length > 0 && extCurEV > 0 && (
+                  <div className="flex justify-between text-xs pl-2">
+                    <span className="text-muted-foreground">External Clients:</span>
+                    <span className={extCurGP != null && extCurGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extCurGP != null ? `${extCurGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

@@ -220,18 +220,16 @@ export default function ProjectsOverview() {
                     {budgetedGP != null ? `${budgetedGP.toFixed(1)}%` : "—"}
                   </span>
                 </div>
-                {owned.length > 0 && ownBudgetCV > 0 && (
-                  <div className="flex justify-between text-xs pl-2">
-                    <span className="text-muted-foreground">Own Projects:</span>
-                    <span className={ownBudgetGP != null && ownBudgetGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownBudgetGP != null ? `${ownBudgetGP.toFixed(1)}%` : "—"}</span>
+                {(owned.length > 0 && ownBudgetCV > 0) || (external.length > 0 && extBudgetCV > 0) ? (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {owned.length > 0 && ownBudgetCV > 0 && (
+                      <span>Own: <span className={ownBudgetGP != null && ownBudgetGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownBudgetGP != null ? `${ownBudgetGP.toFixed(1)}%` : "—"}</span></span>
+                    )}
+                    {external.length > 0 && extBudgetCV > 0 && (
+                      <span>External: <span className={extBudgetGP != null && extBudgetGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extBudgetGP != null ? `${extBudgetGP.toFixed(1)}%` : "—"}</span></span>
+                    )}
                   </div>
-                )}
-                {external.length > 0 && extBudgetCV > 0 && (
-                  <div className="flex justify-between text-xs pl-2">
-                    <span className="text-muted-foreground">External Clients:</span>
-                    <span className={extBudgetGP != null && extBudgetGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extBudgetGP != null ? `${extBudgetGP.toFixed(1)}%` : "—"}</span>
-                  </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           )}
@@ -253,18 +251,16 @@ export default function ProjectsOverview() {
                     {updatedGP != null ? `${updatedGP.toFixed(1)}%` : "—"}
                   </span>
                 </div>
-                {owned.length > 0 && ownUpdCV > 0 && (
-                  <div className="flex justify-between text-xs pl-2">
-                    <span className="text-muted-foreground">Own Projects:</span>
-                    <span className={ownUpdGP != null && ownUpdGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownUpdGP != null ? `${ownUpdGP.toFixed(1)}%` : "—"}</span>
+                {(owned.length > 0 && ownUpdCV > 0) || (external.length > 0 && extUpdCV > 0) ? (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {owned.length > 0 && ownUpdCV > 0 && (
+                      <span>Own: <span className={ownUpdGP != null && ownUpdGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownUpdGP != null ? `${ownUpdGP.toFixed(1)}%` : "—"}</span></span>
+                    )}
+                    {external.length > 0 && extUpdCV > 0 && (
+                      <span>External: <span className={extUpdGP != null && extUpdGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extUpdGP != null ? `${extUpdGP.toFixed(1)}%` : "—"}</span></span>
+                    )}
                   </div>
-                )}
-                {external.length > 0 && extUpdCV > 0 && (
-                  <div className="flex justify-between text-xs pl-2">
-                    <span className="text-muted-foreground">External Clients:</span>
-                    <span className={extUpdGP != null && extUpdGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extUpdGP != null ? `${extUpdGP.toFixed(1)}%` : "—"}</span>
-                  </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           )}
@@ -286,18 +282,16 @@ export default function ProjectsOverview() {
                     {currentGP != null ? `${currentGP.toFixed(1)}%` : "—"}
                   </span>
                 </div>
-                {owned.length > 0 && ownCurEV > 0 && (
-                  <div className="flex justify-between text-xs pl-2">
-                    <span className="text-muted-foreground">Own Projects:</span>
-                    <span className={ownCurGP != null && ownCurGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownCurGP != null ? `${ownCurGP.toFixed(1)}%` : "—"}</span>
+                {(owned.length > 0 && ownCurEV > 0) || (external.length > 0 && extCurEV > 0) ? (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {owned.length > 0 && ownCurEV > 0 && (
+                      <span>Own: <span className={ownCurGP != null && ownCurGP >= 0 ? "text-emerald-600" : "text-red-500"}>{ownCurGP != null ? `${ownCurGP.toFixed(1)}%` : "—"}</span></span>
+                    )}
+                    {external.length > 0 && extCurEV > 0 && (
+                      <span>External: <span className={extCurGP != null && extCurGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extCurGP != null ? `${extCurGP.toFixed(1)}%` : "—"}</span></span>
+                    )}
                   </div>
-                )}
-                {external.length > 0 && extCurEV > 0 && (
-                  <div className="flex justify-between text-xs pl-2">
-                    <span className="text-muted-foreground">External Clients:</span>
-                    <span className={extCurGP != null && extCurGP >= 0 ? "text-emerald-600" : "text-red-500"}>{extCurGP != null ? `${extCurGP.toFixed(1)}%` : "—"}</span>
-                  </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           )}

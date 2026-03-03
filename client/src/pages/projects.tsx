@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -761,27 +761,67 @@ export default function Projects() {
     }
   };
 
+  const filtered = useMemo(() => (projects ?? []).filter(p => {
+    if (projectFilter === "all") return true;
+    if (projectFilter === "Own" || projectFilter === "Group" || projectFilter === "Non-group") return p.clientType === projectFilter;
+    if (projectFilter === "active" || projectFilter === "completed") return p.status === projectFilter;
+    return true;
+  }), [projects, projectFilter]);
+
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const selectedProject = filtered.find(p => p.id === selectedProjectId) ?? null;
+
+  const filteredIds = filtered.map(p => p.id).join(",");
+  useEffect(() => {
+    if (filtered.length > 0 && !filtered.find(p => p.id === selectedProjectId)) {
+      setSelectedProjectId(filtered[0].id);
+    }
+  }, [filteredIds]);
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-8 w-48" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map(i => <Card key={i}><CardContent className="p-5"><Skeleton className="h-24 w-full" /></CardContent></Card>)}
+        <div className="grid gap-2 grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-10 w-full" />)}
         </div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
+  const p = selectedProject;
+
+  const ev = p && (p.billedAmount != null || p.unbilledAmount != null)
+    ? (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0) : null;
+  const actualTotalCost = p && (p.actualDirectCost != null || p.actualIndirectCost != null)
+    ? (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0) : null;
+  const costVariance = ev != null && actualTotalCost != null ? ev - actualTotalCost : null;
+  const costVariancePct = costVariance != null && ev !== 0 ? (costVariance / ev!) * 100 : null;
+  const contractAmount = p ? (p.updatedProjectValue ?? p.projectValue) : null;
+  const financialPct = ev != null && contractAmount != null && contractAmount !== 0 ? (ev / contractAmount) * 100 : null;
+  const displaySpi = p?.spiIndex ?? ((p?.performancePercentage != null && p?.schedulePercentage != null && p.schedulePercentage !== 0) ? p.performancePercentage / p.schedulePercentage : null);
+  const displayCpi = p?.cpiIndex ?? (ev != null && actualTotalCost != null && actualTotalCost !== 0 ? ev / actualTotalCost : null);
+  const budgetedGP = p && p.projectValue != null && p.budgetedCost != null && p.projectValue !== 0
+    ? ((p.projectValue - p.budgetedCost) / p.projectValue) * 100 : null;
+  const updatedCV = p ? (p.updatedProjectValue ?? p.projectValue) : null;
+  const updatedC = p ? (p.updatedCost ?? p.budgetedCost) : null;
+  const updatedGP = updatedCV != null && updatedC != null && updatedCV !== 0
+    ? ((updatedCV - updatedC) / updatedCV) * 100 : null;
+  const currentGP = ev != null && actualTotalCost != null && ev !== 0
+    ? ((ev - actualTotalCost) / ev) * 100 : null;
+  const assignedPMs = p ? getAssignedUsersByRole(p.id, "Project Manager") : [];
+  const assignedDMs = p ? getAssignedUsersByRole(p.id, "Development Manager") : [];
+  const achieved = p?.overallProgress ?? 0;
+  const planned = p?.schedulePercentage ?? 0;
+
   return (
-    <div className="p-6 space-y-6" data-testid="projects-page">
+    <div className="p-4 md:p-6 space-y-4" data-testid="projects-page">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground">Manage your construction projects</p>
-        </div>
+        <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
         <div className="flex items-center gap-3 flex-wrap">
           <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-[160px]" data-testid="select-project-filter">
+            <SelectTrigger className="w-[140px] h-9" data-testid="select-project-filter">
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
@@ -794,418 +834,219 @@ export default function Projects() {
             </SelectContent>
           </Select>
           {canEditProjects && (
-            <Button onClick={openAddDialog} data-testid="button-add-project">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Project
+            <Button size="sm" onClick={openAddDialog} data-testid="button-add-project">
+              <Plus className="mr-1.5 h-4 w-4" /> Add Project
             </Button>
           )}
         </div>
       </div>
 
-      {(() => {
-        const filtered = (projects ?? []).filter(p => {
-          if (projectFilter === "all") return true;
-          if (projectFilter === "Own" || projectFilter === "Group" || projectFilter === "Non-group") return p.clientType === projectFilter;
-          if (projectFilter === "active" || projectFilter === "completed") return p.status === projectFilter;
-          return true;
-        });
-        if (filtered.length === 0) return (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Building2 className="h-12 w-12 text-muted-foreground/40 mb-4" />
-            <p className="text-muted-foreground mb-2">{projects && projects.length > 0 ? "No projects match the selected filter" : "No projects added yet"}</p>
-            <p className="text-sm text-muted-foreground mb-4">{projects && projects.length > 0 ? "Try selecting a different filter" : "Add your first construction project to get started"}</p>
-          </CardContent>
-        </Card>
-        );
-        return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(project => (
-            <Card key={project.id} data-testid={`card-project-${project.id}`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base">{project.name}</CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Badge variant={statusBadgeVariant(project.status)} className="text-xs shrink-0 capitalize">
-                      {project.status}
-                    </Badge>
-                    {canEditProjects && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" data-testid={`button-project-menu-${project.id}`}>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(project)} data-testid={`button-edit-project-${project.id}`}>
-                            <Pencil className="h-4 w-4 mr-2" /> Edit
-                          </DropdownMenuItem>
-                          {project.status !== "closed" && (
-                            <DropdownMenuItem onClick={() => closeMutation.mutate(project.id)} data-testid={`button-close-project-${project.id}`}>
-                              <CheckCircle2 className="h-4 w-4 mr-2" /> Close Project
-                            </DropdownMenuItem>
-                          )}
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive" data-testid={`button-delete-project-${project.id}`}>
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Project</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{project.name}"? This action cannot be undone and will remove all associated data.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteMutation.mutate(project.id)} data-testid={`button-confirm-delete-project-${project.id}`}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {((project.photos as string[]) ?? []).length > 0 && (
-                  <div className="flex gap-1.5 mb-3 -mx-1" data-testid={`photos-project-${project.id}`}>
-                    {((project.photos as string[]) ?? []).map((url, i) => (
-                      <div key={i} className="flex-1 rounded-md overflow-hidden" style={{ aspectRatio: "4/3" }}>
-                        <img src={url} alt={`${project.name} photo ${i + 1}`} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5" data-testid="project-list-grid">
+        {filtered.length === 0 ? (
+          <div className="col-span-3 flex flex-col items-center justify-center py-8">
+            <Building2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
+            <p className="text-muted-foreground text-sm">{projects && projects.length > 0 ? "No projects match the selected filter" : "No projects added yet"}</p>
+          </div>
+        ) : (
+          filtered.map(project => (
+            <button
+              key={project.id}
+              onClick={() => setSelectedProjectId(project.id)}
+              className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors truncate ${
+                selectedProjectId === project.id
+                  ? "bg-primary text-primary-foreground border-primary font-semibold"
+                  : "bg-card hover:bg-muted/60 border-border"
+              }`}
+              data-testid={`button-select-project-${project.id}`}
+            >
+              <span className="truncate block">{project.name}</span>
+              <span className={`text-[10px] ${selectedProjectId === project.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{project.code}</span>
+            </button>
+          ))
+        )}
+      </div>
+
+      {p && (
+        <div className="space-y-4" data-testid={`detail-project-${p.id}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <h2 className="text-xl font-bold truncate">{p.name}</h2>
+              <Badge variant={statusBadgeVariant(p.status)} className="text-xs shrink-0 capitalize">{p.status}</Badge>
+            </div>
+            {canEditProjects && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button variant="outline" size="sm" onClick={() => openEditDialog(p)} data-testid={`button-edit-project-${p.id}`}>
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                </Button>
+                {p.status !== "closed" && (
+                  <Button variant="ghost" size="sm" onClick={() => closeMutation.mutate(p.id)} data-testid={`button-close-project-${p.id}`}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Close
+                  </Button>
                 )}
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Code:</span>
-                    <span className="font-medium">{project.code}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Location:</span>
-                    <span className="font-medium">{project.location}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Client:</span>
-                    <span className="font-medium">{project.client}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Client Type:</span>
-                    <Badge variant="outline" className="text-xs">{project.clientType || "Own"}</Badge>
-                  </div>
-                  {(() => {
-                    const assignedPMs = getAssignedUsersByRole(project.id, "Project Manager");
-                    const assignedDMs = getAssignedUsersByRole(project.id, "Development Manager");
-                    return (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Project Manager:</span>
-                          <span className="font-medium flex items-center gap-1" data-testid={`text-pm-${project.id}`}>
-                            {assignedPMs.length > 0 ? (
-                              <><UserCircle className="h-3.5 w-3.5" /> {assignedPMs.map(u => u.name).join(", ")}</>
-                            ) : (
-                              <span className="text-muted-foreground italic">Not assigned</span>
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Dev. Manager:</span>
-                          <span className="font-medium flex items-center gap-1" data-testid={`text-dm-${project.id}`}>
-                            {assignedDMs.length > 0 ? (
-                              <><UserCircle className="h-3.5 w-3.5" /> {assignedDMs.map(u => u.name).join(", ")}</>
-                            ) : (
-                              <span className="text-muted-foreground italic">Not assigned</span>
-                            )}
-                          </span>
-                        </div>
-                      </>
-                    );
-                  })()}
-                  {project.scopeOfWork && (
-                    <div className="pt-1">
-                      <span className="text-muted-foreground text-xs">Scope of Work:</span>
-                      <p className="text-xs mt-0.5 line-clamp-2">{project.scopeOfWork}</p>
-                    </div>
-                  )}
-                  <div className="pt-1.5 border-t mt-2 space-y-1.5">
-                    {project.startDate && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Start Date:</span>
-                        <span className="font-medium">{project.startDate}</span>
-                      </div>
-                    )}
-                    {project.plannedDeliveryDate && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Planned Completion:</span>
-                        <span className="font-medium">{project.plannedDeliveryDate}</span>
-                      </div>
-                    )}
-                    {project.revisedBaselineDate && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Revised Baseline:</span>
-                        <span className="font-medium">{project.revisedBaselineDate}</span>
-                      </div>
-                    )}
-                    {project.updatedDeliveryDate && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Expected Completion:</span>
-                        <span className="font-medium">{project.updatedDeliveryDate}</span>
-                      </div>
-                    )}
-                    {(() => {
-                      const hasBudget = project.projectValue != null || project.budgetedCost != null;
-                      const budgetedGP = (project.projectValue != null && project.budgetedCost != null && project.projectValue !== 0)
-                        ? ((project.projectValue - project.budgetedCost) / project.projectValue) * 100 : null;
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" data-testid={`button-delete-project-${p.id}`}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                      <AlertDialogDescription>Are you sure you want to delete "{p.name}"? This cannot be undone.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => { deleteMutation.mutate(p.id); setSelectedProjectId(null); }} data-testid={`button-confirm-delete-project-${p.id}`}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </div>
 
-                      const hasUpdated = project.updatedProjectValue != null || project.updatedCost != null;
-                      const updatedCV = project.updatedProjectValue ?? project.projectValue;
-                      const updatedC = project.updatedCost ?? project.budgetedCost;
-                      const updatedGP = (hasUpdated && updatedCV != null && updatedC != null && updatedCV !== 0)
-                        ? ((updatedCV - updatedC) / updatedCV) * 100 : null;
+          {((p.photos as string[]) ?? []).length > 0 && (
+            <div className="flex gap-2" data-testid={`photos-project-${p.id}`}>
+              {((p.photos as string[]) ?? []).map((url, i) => (
+                <div key={i} className="rounded-lg overflow-hidden border" style={{ width: 120, height: 90 }}>
+                  <img src={url} alt={`${p.name} photo ${i + 1}`} className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
 
-                      const ev = (project.billedAmount != null || project.unbilledAmount != null)
-                        ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;
-                      const actualTotalCost = (project.actualDirectCost != null || project.actualIndirectCost != null)
-                        ? (project.actualDirectCost ?? 0) + (project.actualIndirectCost ?? 0) : null;
-                      const hasCurrent = ev != null || actualTotalCost != null;
-                      const currentGP = (ev != null && actualTotalCost != null && ev !== 0)
-                        ? ((ev - actualTotalCost) / ev) * 100 : null;
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="section-key-metrics">
+            <Card>
+              <CardContent className="py-3 px-4">
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Progress</p>
+                <p className="text-2xl font-bold text-primary">{achieved}%</p>
+                <div className="relative h-2 w-full rounded-full bg-muted/50 mt-1.5">
+                  <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(achieved, 100)}%`, background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
+                  {planned > 0 && <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-sm" style={{ left: `${Math.min(planned, 100)}%`, background: "#d97706" }} />}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Schedule: {planned}%</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-3 px-4">
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">SPI</p>
+                <p className={`text-2xl font-bold ${displaySpi != null ? (displaySpi >= 1 ? "text-emerald-600" : "text-red-500") : ""}`}>{displaySpi != null ? displaySpi.toFixed(2) : "—"}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{displaySpi != null ? (displaySpi >= 1 ? "On/Ahead of schedule" : "Behind schedule") : "Not computed"}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-3 px-4">
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">CPI</p>
+                <p className={`text-2xl font-bold ${displayCpi != null ? (displayCpi >= 1 ? "text-emerald-600" : "text-red-500") : ""}`}>{displayCpi != null ? displayCpi.toFixed(2) : "—"}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{displayCpi != null ? (displayCpi >= 1 ? "Under budget" : "Over budget") : "Not computed"}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-3 px-4">
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Cost Variance</p>
+                <p className={`text-2xl font-bold ${costVariance != null ? (costVariance >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{costVariance != null ? formatCurrency(costVariance) : "—"}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{costVariancePct != null ? `${costVariancePct.toFixed(1)}%` : ""} {costVariance != null ? (costVariance >= 0 ? "Favorable" : "Unfavorable") : ""}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-                      return (
-                        <>
-                          {hasBudget && (
-                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
-                              <p className="text-xs font-semibold text-muted-foreground">Budget</p>
-                              {project.projectValue != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Contract Value:</span>
-                                  <span className="font-medium">{formatCurrency(project.projectValue)}</span>
-                                </div>
-                              )}
-                              {project.budgetedCost != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Budgeted Cost:</span>
-                                  <span className="font-medium">{formatCurrency(project.budgetedCost)}</span>
-                                </div>
-                              )}
-                              {budgetedGP != null && (
-                                <div className="flex justify-between" data-testid={`text-budgeted-gp-${project.id}`}>
-                                  <span className="text-muted-foreground">Gross Profit:</span>
-                                  <span className={`font-medium ${budgetedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{budgetedGP.toFixed(1)}%</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {hasUpdated && (
-                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
-                              <p className="text-xs font-semibold text-muted-foreground">Updated Situation</p>
-                              {updatedCV != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Contract Value:</span>
-                                  <span className="font-medium">{formatCurrency(updatedCV)}</span>
-                                </div>
-                              )}
-                              {updatedC != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Cost:</span>
-                                  <span className="font-medium">{formatCurrency(updatedC)}</span>
-                                </div>
-                              )}
-                              {updatedGP != null && (
-                                <div className="flex justify-between" data-testid={`text-updated-gp-${project.id}`}>
-                                  <span className="text-muted-foreground">Gross Profit:</span>
-                                  <span className={`font-medium ${updatedGP >= 0 ? "text-green-600" : "text-red-500"}`}>{updatedGP.toFixed(1)}%</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {hasCurrent && (
-                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
-                              <p className="text-xs font-semibold text-muted-foreground">Current Situation</p>
-                              {ev != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Contract Value (Earned):</span>
-                                  <span className="font-medium">{formatCurrency(ev)}</span>
-                                </div>
-                              )}
-                              {actualTotalCost != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Actual Total Cost:</span>
-                                  <span className="font-medium">{formatCurrency(actualTotalCost)}</span>
-                                </div>
-                              )}
-                              {currentGP != null && (
-                                <div className="flex justify-between" data-testid={`text-gross-profit-${project.id}`}>
-                                  <span className="text-muted-foreground">Gross Profit:</span>
-                                  <span className={`font-medium ${currentGP >= 0 ? "text-green-600" : "text-red-500"}`}>{currentGP.toFixed(1)}%</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                    {(() => {
-                      const hasBilled = project.billedAmount != null;
-                      const hasUnbilled = project.unbilledAmount != null;
-                      const hasDirect = project.actualDirectCost != null;
-                      const hasIndirect = project.actualIndirectCost != null;
-                      const hasFinancial = hasBilled || hasUnbilled || hasDirect || hasIndirect;
-                      const canComputeWorkPerformed = hasBilled || hasUnbilled;
-                      const canComputeTotalCost = hasDirect || hasIndirect;
-                      const totalWorkPerformed = canComputeWorkPerformed ? (project.billedAmount ?? 0) + (project.unbilledAmount ?? 0) : null;
-                      const actualTotalCost = canComputeTotalCost ? (project.actualDirectCost ?? 0) + (project.actualIndirectCost ?? 0) : null;
-                      const canComputeVariance = totalWorkPerformed != null && actualTotalCost != null;
-                      const costVarianceUsd = canComputeVariance ? totalWorkPerformed - actualTotalCost : null;
-                      const costVariancePct = canComputeVariance && totalWorkPerformed !== 0 ? ((costVarianceUsd!) / totalWorkPerformed) * 100 : null;
-                      const contractAmount = project.updatedProjectValue ?? project.projectValue;
-                      const financialPct = totalWorkPerformed != null && contractAmount != null && contractAmount !== 0 ? (totalWorkPerformed / contractAmount) * 100 : null;
-                      const tileComputedSpi = (project.performancePercentage != null && project.schedulePercentage != null && project.schedulePercentage !== 0)
-                        ? project.performancePercentage / project.schedulePercentage : null;
-                      const tileComputedCpi = (totalWorkPerformed != null && actualTotalCost != null && actualTotalCost !== 0)
-                        ? totalWorkPerformed / actualTotalCost : null;
-                      const displaySpi = project.spiIndex ?? tileComputedSpi;
-                      const displayCpi = project.cpiIndex ?? tileComputedCpi;
-                      const hasPerformance = project.delayDays != null || project.schedulePercentage != null || project.performancePercentage != null || displaySpi != null || displayCpi != null;
-                      return (
-                        <>
-                          {hasFinancial && (
-                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
-                              <p className="text-xs font-semibold text-muted-foreground">Financial</p>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground font-medium">Earned Value:</span>
-                                <span className="font-medium">{totalWorkPerformed != null ? formatCurrency(totalWorkPerformed) : "—"}</span>
-                              </div>
-                              <div className="flex justify-between pl-4">
-                                <span className="text-muted-foreground text-xs">Billed:</span>
-                                <span className="text-xs">{hasBilled ? formatCurrency(project.billedAmount!) : "—"}</span>
-                              </div>
-                              <div className="flex justify-between pl-4">
-                                <span className="text-muted-foreground text-xs">Unbilled:</span>
-                                <span className="text-xs">{hasUnbilled ? formatCurrency(project.unbilledAmount!) : "—"}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground font-medium">Actual Total Cost:</span>
-                                <span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span>
-                              </div>
-                              <CostTileBreakdown
-                                label="Direct Cost"
-                                amount={project.actualDirectCost}
-                                details={project.directCostDetails as DirectCostDetails | null}
-                                labels={DIRECT_COST_LABELS}
-                                testIdPrefix="direct"
-                              />
-                              <CostTileBreakdown
-                                label="Indirect Cost"
-                                amount={project.actualIndirectCost}
-                                details={project.indirectCostDetails as IndirectCostDetails | null}
-                                labels={INDIRECT_COST_LABELS}
-                                testIdPrefix="indirect"
-                              />
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Cost Variance:</span>
-                                {costVarianceUsd != null ? (
-                                  <span className={`font-medium ${costVarianceUsd > 0 ? "text-green-600" : costVarianceUsd < 0 ? "text-red-500" : ""}`}>
-                                    {formatCurrency(costVarianceUsd)}{costVariancePct != null ? ` (${costVariancePct.toFixed(1)}%)` : ""}
-                                  </span>
-                                ) : (
-                                  <span className="font-medium">—</span>
-                                )}
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Financial %:</span>
-                                <span className="font-medium">{financialPct != null ? `${financialPct.toFixed(1)}%` : "—"}</span>
-                              </div>
-                            </div>
-                          )}
-                          {hasPerformance && (
-                            <div className="pt-1.5 border-t mt-1.5 space-y-1">
-                              <p className="text-xs font-semibold text-muted-foreground">Performance</p>
-                              {project.delayDays != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Delay:</span>
-                                  <span className={`font-medium ${project.delayDays > 0 ? "text-red-500" : ""}`}>{project.delayDays} days</span>
-                                </div>
-                              )}
-                              {project.schedulePercentage != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Schedule %:</span>
-                                  <span className="font-medium">{project.schedulePercentage}%</span>
-                                </div>
-                              )}
-                              {project.performancePercentage != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Performance %:</span>
-                                  <span className="font-medium">{project.performancePercentage}%</span>
-                                </div>
-                              )}
-                              {displaySpi != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">SPI:</span>
-                                  <span className={`font-medium ${displaySpi < 1 ? "text-red-500" : "text-green-600"}`}>{displaySpi.toFixed(2)}</span>
-                                </div>
-                              )}
-                              {displayCpi != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">CPI:</span>
-                                  <span className={`font-medium ${displayCpi < 1 ? "text-red-500" : "text-green-600"}`}>{displayCpi.toFixed(2)}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                    {(() => {
-                      const achieved = project.overallProgress ?? 0;
-                      const planned = project.schedulePercentage ?? 0;
-                      const achievedClamped = Math.min(achieved, 100);
-                      const plannedClamped = Math.min(planned, 100);
-                      const fmtPct = (v: number) => v.toFixed(v % 1 === 0 ? 0 : 2);
-                      return (
-                        <div className="pt-2 border-t mt-2" data-testid="chart-progress-gauge">
-                          <p className="text-xs font-semibold text-center text-muted-foreground mb-1">Project Status</p>
-                          <div className="px-1">
-                            <div className="flex justify-between items-center mb-1">
-                              <div className="flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-sm" style={{ background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
-                                <span className="text-[10px] text-muted-foreground">Achieved</span>
-                                <span className="text-[11px] font-bold" style={{ color: "#2563eb" }}>{fmtPct(achieved)}%</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full border-2" style={{ borderColor: "#d97706" }} />
-                                <span className="text-[10px] text-muted-foreground">Planned</span>
-                                <span className="text-[11px] font-bold" style={{ color: "#d97706" }}>{fmtPct(planned)}%</span>
-                              </div>
-                            </div>
-                            <div className="relative h-4 w-full rounded-full bg-muted/50 overflow-visible">
-                              <div className="absolute inset-y-0 left-0 rounded-full transition-all" style={{ width: `${achievedClamped}%`, background: "linear-gradient(90deg, #2563eb, #06b6d4)" }} />
-                              {planned > 0 && (
-                                <div className="absolute top-1/2 -translate-y-1/2 w-1 h-6 rounded-sm" style={{ left: `${plannedClamped}%`, marginLeft: "-2px", background: "#d97706" }} />
-                              )}
-                            </div>
-                            <div className="flex justify-between mt-0.5">
-                              <span className="text-[9px] text-muted-foreground">0%</span>
-                              <span className="text-[9px] text-muted-foreground">100%</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card data-testid="section-project-info">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold">Project Information</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Code:</span><span className="font-medium">{p.code}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Location:</span><span className="font-medium">{p.location}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Client:</span><span className="font-medium">{p.client}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Client Type:</span><Badge variant="outline" className="text-xs">{p.clientType || "Own"}</Badge></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Project Manager:</span><span className="font-medium text-xs" data-testid={`text-pm-${p.id}`}>{assignedPMs.length > 0 ? assignedPMs.map(u => u.name).join(", ") : <span className="text-muted-foreground italic">Not assigned</span>}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Dev. Manager:</span><span className="font-medium text-xs" data-testid={`text-dm-${p.id}`}>{assignedDMs.length > 0 ? assignedDMs.map(u => u.name).join(", ") : <span className="text-muted-foreground italic">Not assigned</span>}</span></div>
+                {p.scopeOfWork && <div className="pt-1 border-t"><span className="text-muted-foreground text-xs">Scope:</span><p className="text-xs mt-0.5">{p.scopeOfWork}</p></div>}
+              </CardContent>
+            </Card>
+
+            <Card data-testid="section-schedule">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold">Schedule & Performance</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-2 text-sm">
+                {p.startDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Start Date:</span><span className="font-medium">{p.startDate}</span></div>}
+                {p.plannedDeliveryDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Planned Completion:</span><span className="font-medium">{p.plannedDeliveryDate}</span></div>}
+                {p.revisedBaselineDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Revised Baseline:</span><span className="font-medium">{p.revisedBaselineDate}</span></div>}
+                {p.updatedDeliveryDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Expected Completion:</span><span className="font-medium">{p.updatedDeliveryDate}</span></div>}
+                <div className="border-t pt-2 mt-2 space-y-2">
+                  {p.delayDays != null && <div className="flex justify-between"><span className="text-muted-foreground">Delay:</span><span className={`font-medium ${p.delayDays > 0 ? "text-red-500" : "text-green-600"}`}>{p.delayDays} days</span></div>}
+                  {p.schedulePercentage != null && <div className="flex justify-between"><span className="text-muted-foreground">Schedule %:</span><span className="font-medium">{p.schedulePercentage}%</span></div>}
+                  {p.performancePercentage != null && <div className="flex justify-between"><span className="text-muted-foreground">Performance %:</span><span className="font-medium">{p.performancePercentage}%</span></div>}
+                  {financialPct != null && <div className="flex justify-between"><span className="text-muted-foreground">Financial %:</span><span className="font-medium">{financialPct.toFixed(1)}%</span></div>}
                 </div>
               </CardContent>
             </Card>
-          ))}
+
+            <Card data-testid="section-financial-summary">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold">Financial Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Earned Value:</span><span className="font-medium">{ev != null ? formatCurrency(ev) : "—"}</span></div>
+                <div className="flex justify-between pl-3"><span className="text-muted-foreground text-xs">Billed:</span><span className="text-xs">{formatCurrency(p.billedAmount)}</span></div>
+                <div className="flex justify-between pl-3"><span className="text-muted-foreground text-xs">Unbilled:</span><span className="text-xs">{formatCurrency(p.unbilledAmount)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Actual Total Cost:</span><span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span></div>
+                <CostTileBreakdown label="Direct Cost" amount={p.actualDirectCost} details={p.directCostDetails as DirectCostDetails | null} labels={DIRECT_COST_LABELS} testIdPrefix="direct" />
+                <CostTileBreakdown label="Indirect Cost" amount={p.actualIndirectCost} details={p.indirectCostDetails as IndirectCostDetails | null} labels={INDIRECT_COST_LABELS} testIdPrefix="indirect" />
+                {costVariance != null && (
+                  <div className="flex justify-between border-t pt-1.5">
+                    <span className="text-muted-foreground">Cost Variance:</span>
+                    <span className={`font-medium ${costVariance > 0 ? "text-green-600" : costVariance < 0 ? "text-red-500" : ""}`}>{formatCurrency(costVariance)}{costVariancePct != null ? ` (${costVariancePct.toFixed(1)}%)` : ""}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="section-gp-comparison">
+            {(p.projectValue != null || p.budgetedCost != null) && (
+              <Card data-testid="card-budget-gp">
+                <CardContent className="py-3 px-4 space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Budget</p>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Contract Value:</span><span className="font-medium">{formatCurrency(p.projectValue)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Budgeted Cost:</span><span className="font-medium">{formatCurrency(p.budgetedCost)}</span></div>
+                  <div className="flex justify-between text-sm border-t pt-1.5">
+                    <span className="text-muted-foreground font-medium">GP:</span>
+                    <span className={`text-lg font-bold ${budgetedGP != null ? (budgetedGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{budgetedGP != null ? `${budgetedGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {(p.updatedProjectValue != null || p.updatedCost != null) && (
+              <Card data-testid="card-updated-gp">
+                <CardContent className="py-3 px-4 space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Updated Situation</p>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Contract Value:</span><span className="font-medium">{formatCurrency(updatedCV)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cost:</span><span className="font-medium">{formatCurrency(updatedC)}</span></div>
+                  <div className="flex justify-between text-sm border-t pt-1.5">
+                    <span className="text-muted-foreground font-medium">GP:</span>
+                    <span className={`text-lg font-bold ${updatedGP != null ? (updatedGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{updatedGP != null ? `${updatedGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {(ev != null || actualTotalCost != null) && (
+              <Card data-testid="card-current-gp">
+                <CardContent className="py-3 px-4 space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Current Situation</p>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Earned Value:</span><span className="font-medium">{ev != null ? formatCurrency(ev) : "—"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Actual Cost:</span><span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span></div>
+                  <div className="flex justify-between text-sm border-t pt-1.5">
+                    <span className="text-muted-foreground font-medium">GP:</span>
+                    <span className={`text-lg font-bold ${currentGP != null ? (currentGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{currentGP != null ? `${currentGP.toFixed(1)}%` : "—"}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-        );
-      })()}
+      )}
 
       <ProjectFormDialog project={editingProject} open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>

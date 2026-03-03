@@ -66,3 +66,7 @@ shared/
 PostgreSQL with tables: projects, daily_reports, weekly_plans, users
 JSONB columns used for arrays (work_activities, labour_force, subcontractors, etc.)
 New columns: `budgeted_cost`, `updated_cost` on projects table for cost planning; Budgeted GP = (Contract Value - Budgeted Cost) / Contract Value; Updated GP = (Updated Contract Value - Updated Cost) / Updated Contract Value
+JSONB columns `direct_cost_details` and `indirect_cost_details` store cost breakdowns:
+- Direct: Material Cost, Labor, Small Tools & Equipment, Supervision Staff, Sub-Contractors
+- Indirect: Mobilization, Tool & Plants, Formwork, Utilities & Site Facilities, Taxes & Insurance, Head Office Overhead, Contingencies
+Sub-items auto-sum to the main direct/indirect cost fields; users can also enter main totals directly

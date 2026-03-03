@@ -44,10 +44,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, ImagePlus, X } from "lucide-react";
-import type { Project, User } from "@shared/schema";
-import { CLIENT_TYPES } from "@shared/schema";
+import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, ImagePlus, X, ChevronDown, ChevronRight } from "lucide-react";
+import type { Project, User, DirectCostDetails, IndirectCostDetails } from "@shared/schema";
+import { CLIENT_TYPES, DIRECT_COST_LABELS, INDIRECT_COST_LABELS } from "@shared/schema";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+function formatCurrency(value: number | null | undefined) {
+  if (value == null) return "—";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+}
 
 interface ProjectFormData {
   name: string;
@@ -71,6 +76,8 @@ interface ProjectFormData {
   updatedCost: number | null;
   actualDirectCost: number | null;
   actualIndirectCost: number | null;
+  directCostDetails: DirectCostDetails | null;
+  indirectCostDetails: IndirectCostDetails | null;
   delayDays: number | null;
   schedulePercentage: number | null;
   performancePercentage: number | null;
@@ -102,6 +109,8 @@ const emptyForm: ProjectFormData = {
   updatedCost: null,
   actualDirectCost: null,
   actualIndirectCost: null,
+  directCostDetails: null,
+  indirectCostDetails: null,
   delayDays: null,
   schedulePercentage: null,
   performancePercentage: null,
@@ -110,6 +119,122 @@ const emptyForm: ProjectFormData = {
   photos: [],
   status: "active",
 };
+
+function CostSection<T extends Record<string, number | null>>({
+  label, mainValue, onMainChange, details, onDetailsChange, labels, testIdPrefix,
+}: {
+  label: string;
+  mainValue: number | null;
+  onMainChange: (v: number | null) => void;
+  details: T | null;
+  onDetailsChange: (d: T) => void;
+  labels: Record<string, string>;
+  testIdPrefix: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const keys = Object.keys(labels) as (keyof T & string)[];
+  const hasDetails = details != null && Object.values(details).some(v => v != null);
+  const detailSum = details != null ? Object.values(details).reduce((s: number, v) => s + ((v as number | null) ?? 0), 0) : 0;
+  const isAutoSummed = hasDetails;
+
+  return (
+    <div className="space-y-2 border rounded-lg p-3" data-testid={`section-${testIdPrefix}-cost`}>
+      <div
+        className="flex items-center gap-2 cursor-pointer select-none"
+        onClick={() => setExpanded(!expanded)}
+        data-testid={`toggle-${testIdPrefix}-details`}
+      >
+        {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+        <Label className="cursor-pointer font-semibold text-sm flex-1">{label}</Label>
+        <span className="text-sm font-bold whitespace-nowrap" data-testid={`text-${testIdPrefix}-cost-total`}>
+          {mainValue != null ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(mainValue) : "—"}
+        </span>
+      </div>
+      {!expanded && (
+        <Input
+          type="number" min={0} step={0.01}
+          value={mainValue ?? ""}
+          onChange={e => onMainChange(e.target.value ? Number(e.target.value) : null)}
+          placeholder="0.00"
+          disabled={isAutoSummed}
+          data-testid={`input-${testIdPrefix}-cost`}
+        />
+      )}
+      {expanded && (
+        <div className="space-y-2 pl-4 border-l-2 border-muted ml-2">
+          {keys.map((key, idx) => (
+            <div key={key} className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-6 shrink-0">{idx + 1}.</span>
+              <Label className="text-xs flex-1 min-w-0">{labels[key]}</Label>
+              <Input
+                type="number" min={0} step={0.01}
+                className="w-32"
+                value={(details?.[key] as number | null) ?? ""}
+                onChange={e => {
+                  const newDetails = { ...(details ?? Object.fromEntries(keys.map(k => [k, null]))) } as T;
+                  (newDetails as any)[key] = e.target.value ? Number(e.target.value) : null;
+                  onDetailsChange(newDetails);
+                }}
+                placeholder="0.00"
+                data-testid={`input-${testIdPrefix}-${key}`}
+              />
+            </div>
+          ))}
+          {hasDetails && (
+            <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-1.5 mt-1">
+              <span className="text-xs font-medium">Sub-total</span>
+              <span className="text-xs font-bold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(detailSum)}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CostTileBreakdown({
+  label, amount, details, labels, testIdPrefix,
+}: {
+  label: string;
+  amount: number | null | undefined;
+  details: Record<string, number | null> | null | undefined;
+  labels: Record<string, string>;
+  testIdPrefix: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const hasDetails = details != null && Object.values(details).some(v => v != null);
+  const hasAmount = amount != null;
+
+  return (
+    <>
+      <div
+        className={`flex justify-between pl-4 ${hasDetails ? "cursor-pointer hover:bg-muted/30 rounded -mx-1 px-5 py-0.5" : ""}`}
+        onClick={hasDetails ? () => setOpen(!open) : undefined}
+        data-testid={`tile-${testIdPrefix}-cost`}
+      >
+        <span className="text-muted-foreground text-xs flex items-center gap-1">
+          {hasDetails && (open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+          {label}:
+        </span>
+        <span className="text-xs">{hasAmount ? formatCurrency(amount!) : "—"}</span>
+      </div>
+      {open && hasDetails && (
+        <div className="pl-8 space-y-0.5">
+          {Object.entries(labels).map(([key, lbl]) => {
+            const val = (details as any)?.[key] as number | null;
+            if (val == null) return null;
+            return (
+              <div key={key} className="flex justify-between" data-testid={`tile-${testIdPrefix}-${key}`}>
+                <span className="text-muted-foreground text-[11px]">{lbl}:</span>
+                <span className="text-[11px]">{formatCurrency(val)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
 
 function ProjectFormDialog({
   project,
@@ -151,6 +276,8 @@ function ProjectFormDialog({
               updatedCost: project.updatedCost ?? null,
               actualDirectCost: project.actualDirectCost ?? null,
               actualIndirectCost: project.actualIndirectCost ?? null,
+              directCostDetails: (project.directCostDetails as DirectCostDetails) ?? null,
+              indirectCostDetails: (project.indirectCostDetails as IndirectCostDetails) ?? null,
               delayDays: project.delayDays ?? null,
               schedulePercentage: project.schedulePercentage ?? null,
               performancePercentage: project.performancePercentage ?? null,
@@ -343,16 +470,32 @@ function ProjectFormDialog({
               <span className="text-sm font-bold" data-testid="text-earned-value">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((form.billedAmount ?? 0) + (form.unbilledAmount ?? 0))}</span>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Actual Direct Cost (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.actualDirectCost ?? ""} onChange={e => setForm(f => ({ ...f, actualDirectCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-actual-direct-cost" />
-            </div>
-            <div className="space-y-2">
-              <Label>Actual Indirect Cost (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.actualIndirectCost ?? ""} onChange={e => setForm(f => ({ ...f, actualIndirectCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-actual-indirect-cost" />
-            </div>
-          </div>
+          <CostSection
+            label="A. Actual Direct Cost (USD)"
+            mainValue={form.actualDirectCost}
+            onMainChange={(v) => setForm(f => ({ ...f, actualDirectCost: v }))}
+            details={form.directCostDetails}
+            onDetailsChange={(d) => {
+              const sum = Object.values(d).reduce((s: number, v) => s + (v ?? 0), 0);
+              const hasAny = Object.values(d).some(v => v != null);
+              setForm(f => ({ ...f, directCostDetails: d, actualDirectCost: hasAny ? sum : null }));
+            }}
+            labels={DIRECT_COST_LABELS}
+            testIdPrefix="direct"
+          />
+          <CostSection
+            label="B. Actual Indirect Cost (USD)"
+            mainValue={form.actualIndirectCost}
+            onMainChange={(v) => setForm(f => ({ ...f, actualIndirectCost: v }))}
+            details={form.indirectCostDetails}
+            onDetailsChange={(d) => {
+              const sum = Object.values(d).reduce((s: number, v) => s + (v ?? 0), 0);
+              const hasAny = Object.values(d).some(v => v != null);
+              setForm(f => ({ ...f, indirectCostDetails: d, actualIndirectCost: hasAny ? sum : null }));
+            }}
+            labels={INDIRECT_COST_LABELS}
+            testIdPrefix="indirect"
+          />
           {(form.actualDirectCost != null || form.actualIndirectCost != null) && (
             <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
               <span className="text-sm font-medium">Actual Total Cost (USD)</span>
@@ -549,11 +692,6 @@ export default function Projects() {
       case "closed": return "destructive" as const;
       default: return "secondary" as const;
     }
-  };
-
-  const formatCurrency = (value: number | null) => {
-    if (value === null || value === undefined) return "—";
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
   };
 
   if (isLoading) {
@@ -883,14 +1021,20 @@ export default function Projects() {
                                 <span className="text-muted-foreground font-medium">Actual Total Cost:</span>
                                 <span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span>
                               </div>
-                              <div className="flex justify-between pl-4">
-                                <span className="text-muted-foreground text-xs">Direct Cost:</span>
-                                <span className="text-xs">{hasDirect ? formatCurrency(project.actualDirectCost!) : "—"}</span>
-                              </div>
-                              <div className="flex justify-between pl-4">
-                                <span className="text-muted-foreground text-xs">Indirect Cost:</span>
-                                <span className="text-xs">{hasIndirect ? formatCurrency(project.actualIndirectCost!) : "—"}</span>
-                              </div>
+                              <CostTileBreakdown
+                                label="Direct Cost"
+                                amount={project.actualDirectCost}
+                                details={project.directCostDetails as DirectCostDetails | null}
+                                labels={DIRECT_COST_LABELS}
+                                testIdPrefix="direct"
+                              />
+                              <CostTileBreakdown
+                                label="Indirect Cost"
+                                amount={project.actualIndirectCost}
+                                details={project.indirectCostDetails as IndirectCostDetails | null}
+                                labels={INDIRECT_COST_LABELS}
+                                testIdPrefix="indirect"
+                              />
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">Cost Variance:</span>
                                 {costVarianceUsd != null ? (

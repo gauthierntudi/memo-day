@@ -5,6 +5,42 @@ import { z } from "zod";
 
 export const CLIENT_TYPES = ["Group", "Non-group", "Own"] as const;
 
+export interface DirectCostDetails {
+  materialCost: number | null;
+  labor: number | null;
+  smallToolsEquipment: number | null;
+  supervisionStaff: number | null;
+  subContractors: number | null;
+}
+
+export interface IndirectCostDetails {
+  mobilization: number | null;
+  toolAndPlants: number | null;
+  formwork: number | null;
+  utilitiesSiteFacilities: number | null;
+  taxesInsurance: number | null;
+  headOfficeOverhead: number | null;
+  contingencies: number | null;
+}
+
+export const DIRECT_COST_LABELS: Record<keyof DirectCostDetails, string> = {
+  materialCost: "Material Cost",
+  labor: "Labor",
+  smallToolsEquipment: "Small Tools & Equipment, Consumables",
+  supervisionStaff: "Supervision Staff",
+  subContractors: "Sub-Contractors",
+};
+
+export const INDIRECT_COST_LABELS: Record<keyof IndirectCostDetails, string> = {
+  mobilization: "Mobilization",
+  toolAndPlants: "Tool & Plants",
+  formwork: "Formwork",
+  utilitiesSiteFacilities: "Utilities & Site Facilities",
+  taxesInsurance: "Taxes & Insurance",
+  headOfficeOverhead: "Head Office Overhead",
+  contingencies: "Contingencies",
+};
+
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -28,6 +64,8 @@ export const projects = pgTable("projects", {
   updatedCost: doublePrecision("updated_cost"),
   actualDirectCost: doublePrecision("actual_direct_cost"),
   actualIndirectCost: doublePrecision("actual_indirect_cost"),
+  directCostDetails: jsonb("direct_cost_details").$type<DirectCostDetails>(),
+  indirectCostDetails: jsonb("indirect_cost_details").$type<IndirectCostDetails>(),
   delayDays: real("delay_days"),
   schedulePercentage: real("schedule_percentage"),
   performancePercentage: real("performance_percentage"),

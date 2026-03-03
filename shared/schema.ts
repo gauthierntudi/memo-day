@@ -54,6 +54,7 @@ export const projects = pgTable("projects", {
   scopeOfWork: text("scope_of_work"),
   startDate: text("start_date"),
   plannedDeliveryDate: text("planned_delivery_date"),
+  revisedBaselineDate: text("revised_baseline_date"),
   updatedDeliveryDate: text("updated_delivery_date"),
   projectValue: doublePrecision("project_value"),
   updatedProjectValue: doublePrecision("updated_project_value"),

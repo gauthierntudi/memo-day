@@ -66,6 +66,7 @@ interface ProjectFormData {
   scopeOfWork: string | null;
   startDate: string | null;
   plannedDeliveryDate: string | null;
+  revisedBaselineDate: string | null;
   updatedDeliveryDate: string | null;
   projectValue: number | null;
   updatedProjectValue: number | null;
@@ -99,6 +100,7 @@ const emptyForm: ProjectFormData = {
   scopeOfWork: null,
   startDate: null,
   plannedDeliveryDate: null,
+  revisedBaselineDate: null,
   updatedDeliveryDate: null,
   projectValue: null,
   updatedProjectValue: null,
@@ -266,6 +268,7 @@ function ProjectFormDialog({
               scopeOfWork: project.scopeOfWork || null,
               startDate: project.startDate || null,
               plannedDeliveryDate: project.plannedDeliveryDate || null,
+              revisedBaselineDate: project.revisedBaselineDate || null,
               updatedDeliveryDate: project.updatedDeliveryDate || null,
               projectValue: project.projectValue || null,
               updatedProjectValue: project.updatedProjectValue || null,
@@ -321,10 +324,36 @@ function ProjectFormDialog({
     },
   });
 
+  const computeScheduleFromBaseline = () => {
+    const start = form.startDate;
+    const baseline = form.revisedBaselineDate ?? form.plannedDeliveryDate;
+    if (!start || !baseline) return null;
+    const startMs = new Date(start).getTime();
+    const baselineMs = new Date(baseline).getTime();
+    const totalDuration = baselineMs - startMs;
+    if (totalDuration <= 0) return null;
+    const elapsed = Date.now() - startMs;
+    return Math.min(Math.round((elapsed / totalDuration) * 10000) / 100, 100);
+  };
+
+  const computeDelayFromBaseline = () => {
+    const baseline = form.revisedBaselineDate ?? form.plannedDeliveryDate;
+    const expected = form.updatedDeliveryDate;
+    if (!baseline || !expected) return null;
+    const baselineMs = new Date(baseline).getTime();
+    const expectedMs = new Date(expected).getTime();
+    const diffDays = Math.round((expectedMs - baselineMs) / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const computedSpi = (form.performancePercentage != null && form.schedulePercentage != null && form.schedulePercentage !== 0)
-      ? form.performancePercentage / form.schedulePercentage : null;
+    const autoSchedule = computeScheduleFromBaseline();
+    const finalSchedule = autoSchedule ?? form.schedulePercentage;
+    const autoDelay = computeDelayFromBaseline();
+    const finalDelay = autoDelay ?? form.delayDays;
+    const computedSpi = (form.performancePercentage != null && finalSchedule != null && finalSchedule !== 0)
+      ? form.performancePercentage / finalSchedule : null;
     const earnedValueForm = (form.billedAmount != null || form.unbilledAmount != null)
       ? (form.billedAmount ?? 0) + (form.unbilledAmount ?? 0) : null;
     const actualTotalCostForm = (form.actualDirectCost != null || form.actualIndirectCost != null)
@@ -333,6 +362,8 @@ function ProjectFormDialog({
       ? earnedValueForm / actualTotalCostForm : null;
     const data: ProjectFormData = {
       ...form,
+      schedulePercentage: finalSchedule,
+      delayDays: finalDelay,
       spiIndex: computedSpi ?? form.spiIndex,
       cpiIndex: computedCpi ?? form.cpiIndex,
     };
@@ -393,17 +424,23 @@ function ProjectFormDialog({
             <Textarea value={form.scopeOfWork || ""} onChange={e => setForm(f => ({ ...f, scopeOfWork: e.target.value || null }))} placeholder="Describe the project scope..." className="min-h-[60px]" data-testid="input-scope-of-work" />
           </div>
           <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">Project Manager and Development Manager are automatically assigned based on user settings. Manage assignments in the Settings page.</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Start Date</Label>
               <Input type="date" value={form.startDate || ""} onChange={e => setForm(f => ({ ...f, startDate: e.target.value || null }))} data-testid="input-start-date" />
             </div>
             <div className="space-y-2">
-              <Label>Planned Delivery</Label>
+              <Label>Planned Completion Date</Label>
               <Input type="date" value={form.plannedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, plannedDeliveryDate: e.target.value || null }))} data-testid="input-planned-delivery" />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Updated Delivery</Label>
+              <Label>Revised Baseline for Completion</Label>
+              <Input type="date" value={form.revisedBaselineDate || ""} onChange={e => setForm(f => ({ ...f, revisedBaselineDate: e.target.value || null }))} data-testid="input-revised-baseline" />
+            </div>
+            <div className="space-y-2">
+              <Label>Expected Completion Date</Label>
               <Input type="date" value={form.updatedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, updatedDeliveryDate: e.target.value || null }))} data-testid="input-updated-delivery" />
             </div>
           </div>
@@ -503,23 +540,53 @@ function ProjectFormDialog({
             </div>
           )}
           <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Performance Metrics</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label>Delay (Days)</Label>
-              <Input type="number" step={1} value={form.delayDays ?? ""} onChange={e => setForm(f => ({ ...f, delayDays: e.target.value ? Number(e.target.value) : null }))} placeholder="0" data-testid="input-delay-days" />
-            </div>
-            <div className="space-y-2">
-              <Label>Schedule %</Label>
-              <Input type="number" min={0} max={100} step={0.01} value={form.schedulePercentage ?? ""} onChange={e => setForm(f => ({ ...f, schedulePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-schedule-percentage" />
-            </div>
-            <div className="space-y-2">
-              <Label>Performance %</Label>
-              <Input type="number" min={0} max={100} step={0.01} value={form.performancePercentage ?? ""} onChange={e => setForm(f => ({ ...f, performancePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-performance-percentage" />
-            </div>
-          </div>
           {(() => {
-            const computedSpi = (form.performancePercentage != null && form.schedulePercentage != null && form.schedulePercentage !== 0)
-              ? form.performancePercentage / form.schedulePercentage : null;
+            const autoSchedule = computeScheduleFromBaseline();
+            const autoDelay = computeDelayFromBaseline();
+            const baselineRef = form.revisedBaselineDate ?? form.plannedDeliveryDate;
+            return (
+              <>
+                {(autoSchedule != null || autoDelay != null) && baselineRef && (
+                  <p className="text-[11px] text-muted-foreground bg-blue-50 dark:bg-blue-950/30 rounded-md px-3 py-1.5">
+                    Time metrics referenced against {form.revisedBaselineDate ? "Revised Baseline" : "Planned Completion"}: {baselineRef}
+                  </p>
+                )}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Delay (Days)</Label>
+                    {autoDelay != null ? (
+                      <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-delay-days">
+                        <span className={`font-bold text-sm ${autoDelay > 0 ? "text-red-500" : "text-green-600"}`}>{autoDelay}</span>
+                        <span className="text-xs text-muted-foreground">(auto)</span>
+                      </div>
+                    ) : (
+                      <Input type="number" step={1} value={form.delayDays ?? ""} onChange={e => setForm(f => ({ ...f, delayDays: e.target.value ? Number(e.target.value) : null }))} placeholder="0" data-testid="input-delay-days" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Schedule %</Label>
+                    {autoSchedule != null ? (
+                      <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-schedule-percentage">
+                        <span className="font-bold text-sm">{autoSchedule.toFixed(1)}%</span>
+                        <span className="text-xs text-muted-foreground">(auto)</span>
+                      </div>
+                    ) : (
+                      <Input type="number" min={0} max={100} step={0.01} value={form.schedulePercentage ?? ""} onChange={e => setForm(f => ({ ...f, schedulePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-schedule-percentage" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Performance %</Label>
+                    <Input type="number" min={0} max={100} step={0.01} value={form.performancePercentage ?? ""} onChange={e => setForm(f => ({ ...f, performancePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-performance-percentage" />
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+          {(() => {
+            const autoSchedule = computeScheduleFromBaseline();
+            const finalSchedule = autoSchedule ?? form.schedulePercentage;
+            const computedSpi = (form.performancePercentage != null && finalSchedule != null && finalSchedule !== 0)
+              ? form.performancePercentage / finalSchedule : null;
             const earnedValueForm = (form.billedAmount != null || form.unbilledAmount != null)
               ? (form.billedAmount ?? 0) + (form.unbilledAmount ?? 0) : null;
             const actualTotalCostForm = (form.actualDirectCost != null || form.actualIndirectCost != null)
@@ -869,19 +936,25 @@ export default function Projects() {
                   <div className="pt-1.5 border-t mt-2 space-y-1.5">
                     {project.startDate && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Start:</span>
+                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Start Date:</span>
                         <span className="font-medium">{project.startDate}</span>
                       </div>
                     )}
                     {project.plannedDeliveryDate && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Planned:</span>
+                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Planned Completion:</span>
                         <span className="font-medium">{project.plannedDeliveryDate}</span>
+                      </div>
+                    )}
+                    {project.revisedBaselineDate && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Revised Baseline:</span>
+                        <span className="font-medium">{project.revisedBaselineDate}</span>
                       </div>
                     )}
                     {project.updatedDeliveryDate && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Updated:</span>
+                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Expected Completion:</span>
                         <span className="font-medium">{project.updatedDeliveryDate}</span>
                       </div>
                     )}

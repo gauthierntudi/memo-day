@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Project } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Activity, BarChart3, AlertTriangle, CheckCircle2, Target, Building2 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -50,6 +52,7 @@ function KpiCard({ title, value, subtitle, icon: Icon, trend, color }: {
 
 export default function ProjectsOverview() {
   const { data: projects, isLoading } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   if (isLoading) {
     return (
@@ -59,7 +62,14 @@ export default function ProjectsOverview() {
     );
   }
 
-  const all = projects ?? [];
+  const allProjects = projects ?? [];
+  const all = allProjects.filter(p => {
+    if (categoryFilter === "all") return true;
+    if (categoryFilter === "Own" || categoryFilter === "Group" || categoryFilter === "Non-group") return p.clientType === categoryFilter;
+    if (categoryFilter === "ongoing") return p.status === "active";
+    if (categoryFilter === "completed") return p.status === "completed";
+    return true;
+  });
   const active = all.filter(p => p.status === "active");
   const completed = all.filter(p => p.status === "completed");
   const onHold = all.filter(p => p.status === "on_hold");
@@ -176,10 +186,25 @@ export default function ProjectsOverview() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto" data-testid="page-projects-overview">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Projects Overview</h1>
-          <p className="text-sm text-muted-foreground">Portfolio performance indicators and analytics</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold" data-testid="text-page-title">Projects Overview</h1>
+            <p className="text-sm text-muted-foreground">Portfolio performance indicators and analytics</p>
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[150px] h-9" data-testid="select-category-filter">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="Own">Own</SelectItem>
+              <SelectItem value="Group">Group</SelectItem>
+              <SelectItem value="Non-group">Non-group</SelectItem>
+              <SelectItem value="ongoing">Ongoing</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className={`px-4 py-2 rounded-lg ${overallHealth.bg}`} data-testid="badge-portfolio-health">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Portfolio Health</p>

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Project } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Activity, BarChart3, AlertTriangle, CheckCircle2, Target, Building2 } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Activity, BarChart3, AlertTriangle, CheckCircle2, Target, Building2, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -53,6 +55,48 @@ function KpiCard({ title, value, subtitle, icon: Icon, trend, color }: {
 export default function ProjectsOverview() {
   const { data: projects, isLoading } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const generatePdf = useCallback(async () => {
+    if (!contentRef.current) return;
+    setGeneratingPdf(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 10;
+      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+      heightLeft -= (pdfHeight - 20);
+      while (heightLeft > 0) {
+        position = -(imgHeight - heightLeft) + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+        heightLeft -= (pdfHeight - 20);
+      }
+      const filterLabel = categoryFilter === "all" ? "All" : categoryFilter;
+      const filename = `Projects-Overview-${filterLabel}-${new Date().toISOString().split("T")[0]}.pdf`;
+      pdf.save(filename);
+      toast({ title: "PDF downloaded successfully" });
+    } catch (err) {
+      toast({ title: "Failed to generate PDF", variant: "destructive" });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }, [categoryFilter, toast]);
 
   if (isLoading) {
     return (
@@ -205,6 +249,10 @@ export default function ProjectsOverview() {
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
+          <Button size="sm" variant="outline" onClick={generatePdf} disabled={generatingPdf} data-testid="button-export-pdf">
+            {generatingPdf ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
+            {generatingPdf ? "Generating..." : "Export PDF"}
+          </Button>
         </div>
         <div className={`px-4 py-2 rounded-lg ${overallHealth.bg}`} data-testid="badge-portfolio-health">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Portfolio Health</p>
@@ -212,6 +260,7 @@ export default function ProjectsOverview() {
         </div>
       </div>
 
+      <div ref={contentRef} className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="section-kpi-cards">
         <KpiCard title="Total Projects" value={all.length.toString()} subtitle={`${active.length} active`} icon={Building2} />
         <KpiCard title="Portfolio Value" value={fmt$(totalContractValue)} subtitle={`Billed: ${fmt$(totalBilled)}`} icon={DollarSign} />
@@ -542,6 +591,7 @@ export default function ProjectsOverview() {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
 
     </div>

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Project } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Clock, Activity, BarChart3, AlertTriangle, CheckCircle2, Target, Building2 } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Activity, BarChart3, AlertTriangle, CheckCircle2, Target, Building2 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -47,16 +47,6 @@ function KpiCard({ title, value, subtitle, icon: Icon, trend, color }: {
   );
 }
 
-function HealthBadge({ label, value }: { label: string; value: number | null | undefined }) {
-  if (value == null) return null;
-  const isGood = value >= 1;
-  return (
-    <Badge variant={isGood ? "default" : "destructive"} className="text-xs gap-1" data-testid={`badge-${label.toLowerCase()}`}>
-      {isGood ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-      {label}: {value.toFixed(2)}
-    </Badge>
-  );
-}
 
 export default function ProjectsOverview() {
   const { data: projects, isLoading } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
@@ -349,18 +339,6 @@ export default function ProjectsOverview() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex flex-wrap gap-2 items-center" data-testid="section-health-badges">
-        <span className="text-xs font-medium text-muted-foreground mr-1">Performance Indices:</span>
-        <HealthBadge label="Avg SPI" value={avgSpi} />
-        <HealthBadge label="Avg CPI" value={avgCpi} />
-        {delayedProjects.length > 0 && (
-          <Badge variant="outline" className="text-xs gap-1" data-testid="badge-delays">
-            <Clock className="h-3 w-3" />
-            {delayedProjects.length} project{delayedProjects.length > 1 ? "s" : ""} delayed ({totalDelayDays} days total)
-          </Badge>
-        )}
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2" data-testid="chart-progress-comparison">

@@ -325,18 +325,6 @@ function ProjectFormDialog({
     },
   });
 
-  const computeScheduleFromBaseline = () => {
-    const start = form.startDate;
-    const baseline = form.revisedBaselineDate ?? form.plannedDeliveryDate;
-    if (!start || !baseline) return null;
-    const startMs = new Date(start).getTime();
-    const baselineMs = new Date(baseline).getTime();
-    const totalDuration = baselineMs - startMs;
-    if (totalDuration <= 0) return null;
-    const elapsed = Date.now() - startMs;
-    return Math.min(Math.round((elapsed / totalDuration) * 10000) / 100, 100);
-  };
-
   const computeDelayFromBaseline = () => {
     const baseline = form.revisedBaselineDate ?? form.plannedDeliveryDate;
     const expected = form.updatedDeliveryDate;
@@ -349,8 +337,7 @@ function ProjectFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const autoSchedule = computeScheduleFromBaseline();
-    const finalSchedule = autoSchedule ?? form.schedulePercentage;
+    const finalSchedule = form.schedulePercentage;
     const autoDelay = computeDelayFromBaseline();
     const finalDelay = autoDelay ?? form.delayDays;
     const computedSpi = (form.performancePercentage != null && finalSchedule != null && finalSchedule !== 0)
@@ -542,14 +529,13 @@ function ProjectFormDialog({
           )}
           <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Performance Metrics</p>
           {(() => {
-            const autoSchedule = computeScheduleFromBaseline();
             const autoDelay = computeDelayFromBaseline();
             const baselineRef = form.revisedBaselineDate ?? form.plannedDeliveryDate;
             return (
               <>
-                {(autoSchedule != null || autoDelay != null) && baselineRef && (
+                {autoDelay != null && baselineRef && (
                   <p className="text-[11px] text-muted-foreground bg-blue-50 dark:bg-blue-950/30 rounded-md px-3 py-1.5">
-                    Time metrics referenced against {form.revisedBaselineDate ? "Revised Baseline" : "Planned Completion"}: {baselineRef}
+                    Delay referenced against {form.revisedBaselineDate ? "Revised Baseline" : "Planned Completion"}: {baselineRef}
                   </p>
                 )}
                 <div className="grid grid-cols-3 gap-3">
@@ -566,14 +552,7 @@ function ProjectFormDialog({
                   </div>
                   <div className="space-y-2">
                     <Label>Schedule %</Label>
-                    {autoSchedule != null ? (
-                      <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-schedule-percentage">
-                        <span className="font-bold text-sm">{autoSchedule.toFixed(1)}%</span>
-                        <span className="text-xs text-muted-foreground">(auto)</span>
-                      </div>
-                    ) : (
-                      <Input type="number" min={0} max={100} step={0.01} value={form.schedulePercentage ?? ""} onChange={e => setForm(f => ({ ...f, schedulePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-schedule-percentage" />
-                    )}
+                    <Input type="number" min={0} max={100} step={0.01} value={form.schedulePercentage ?? ""} onChange={e => setForm(f => ({ ...f, schedulePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-schedule-percentage" />
                   </div>
                   <div className="space-y-2">
                     <Label>Performance %</Label>
@@ -584,8 +563,7 @@ function ProjectFormDialog({
             );
           })()}
           {(() => {
-            const autoSchedule = computeScheduleFromBaseline();
-            const finalSchedule = autoSchedule ?? form.schedulePercentage;
+            const finalSchedule = form.schedulePercentage;
             const computedSpi = (form.performancePercentage != null && finalSchedule != null && finalSchedule !== 0)
               ? form.performancePercentage / finalSchedule : null;
             const earnedValueForm = (form.billedAmount != null || form.unbilledAmount != null)

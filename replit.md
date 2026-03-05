@@ -43,7 +43,7 @@ shared/
 3. **Weekly Plans**: Planned activities, labour targets, subcontractors, productivity metrics, milestones
 4. **Weekly Report**: Auto-generated from daily reports, compared against weekly plan with bar/pie charts
 5. **Executive Summary**: Aggregated views across weekly/monthly/quarterly with trend charts
-6. **Projects**: Project management with name, code, location, client, contractor, project manager assignment. Date fields: Start Date, Planned Completion Date, Revised Baseline for Completion, Expected Completion Date. Time performance (Schedule %, Delay Days, SPI) auto-computed from Revised Baseline (or Planned Completion if no revised baseline).
+6. **Projects**: Project management with name, code, location, client, contractor, project manager assignment. Date fields: Start Date, Planned Completion Date, Revised Baseline for Completion, Expected Completion Date. Schedule % is manually input by user. Delay Days auto-computed from Revised Baseline (or Planned Completion if no revised baseline). SPI = Performance % / Schedule %.
 
 ## API Routes
 - `GET/POST /api/projects` - List/create projects

@@ -252,6 +252,7 @@ function ProjectFormDialog({
   const isEditing = !!project;
 
   const [form, setForm] = useState<ProjectFormData>({ ...emptyForm });
+  const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -365,6 +366,7 @@ function ProjectFormDialog({
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh]" data-testid="dialog-project-form">
         <DialogHeader>
@@ -620,7 +622,7 @@ function ProjectFormDialog({
             <div className="flex gap-2 flex-wrap">
               {form.photos.map((url, i) => (
                 <div key={i} className="relative group w-24 h-24 rounded-md overflow-hidden border">
-                  <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover cursor-pointer" onDoubleClick={() => setEnlargedPhoto(url)} />
                   <button type="button" onClick={() => setForm(f => ({ ...f, photos: f.photos.filter((_, j) => j !== i) }))} className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`button-remove-photo-${i}`}>
                     <X className="h-3 w-3" />
                   </button>
@@ -662,6 +664,14 @@ function ProjectFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {enlargedPhoto && (
+      <Dialog open onOpenChange={() => setEnlargedPhoto(null)}>
+        <DialogContent className="max-w-3xl p-2" data-testid="dialog-enlarged-photo">
+          <img src={enlargedPhoto} alt="Enlarged photo" className="w-full h-auto rounded-md" />
+        </DialogContent>
+      </Dialog>
+    )}
+    </>
   );
 }
 
@@ -672,6 +682,7 @@ export default function Projects() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
   const [projectFilter, setProjectFilter] = useState("all");
+  const [enlargedDetailPhoto, setEnlargedDetailPhoto] = useState<string | null>(null);
 
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -883,7 +894,7 @@ export default function Projects() {
             <div className="flex gap-2" data-testid={`photos-project-${p.id}`}>
               {((p.photos as string[]) ?? []).map((url, i) => (
                 <div key={i} className="rounded-lg overflow-hidden border" style={{ width: 120, height: 90 }}>
-                  <img src={url} alt={`${p.name} photo ${i + 1}`} className="w-full h-full object-cover" />
+                  <img src={url} alt={`${p.name} photo ${i + 1}`} className="w-full h-full object-cover cursor-pointer" onDoubleClick={() => setEnlargedDetailPhoto(url)} />
                 </div>
               ))}
             </div>
@@ -1024,6 +1035,13 @@ export default function Projects() {
       )}
 
       <ProjectFormDialog project={editingProject} open={dialogOpen} onOpenChange={setDialogOpen} />
+      {enlargedDetailPhoto && (
+        <Dialog open onOpenChange={() => setEnlargedDetailPhoto(null)}>
+          <DialogContent className="max-w-3xl p-2" data-testid="dialog-enlarged-detail-photo">
+            <img src={enlargedDetailPhoto} alt="Enlarged photo" className="w-full h-auto rounded-md" />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

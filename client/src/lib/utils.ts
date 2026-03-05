@@ -30,44 +30,46 @@ function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
 export async function resizePhoto(file: File): Promise<File> {
   if (file.size <= MAX_PHOTO_BYTES) return file;
 
-  const img = await loadImage(file);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d")!;
+  try {
+    const img = await loadImage(file);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
 
-  let { width, height } = img;
-  let scale = 1;
-  let quality = 0.8;
+    let { width, height } = img;
+    let quality = 0.8;
 
-  const maxDim = 1920;
-  if (width > maxDim || height > maxDim) {
-    scale = maxDim / Math.max(width, height);
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
-  }
+    const maxDim = 1920;
+    if (width > maxDim || height > maxDim) {
+      const scale = maxDim / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
 
-  canvas.width = width;
-  canvas.height = height;
-  ctx.drawImage(img, 0, 0, width, height);
-
-  let blob = await canvasToBlob(canvas, quality);
-
-  while (blob.size > MAX_PHOTO_BYTES && quality > 0.1) {
-    quality -= 0.1;
-    blob = await canvasToBlob(canvas, quality);
-  }
-
-  while (blob.size > MAX_PHOTO_BYTES && width > 200) {
-    scale = 0.75;
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
     canvas.width = width;
     canvas.height = height;
     ctx.drawImage(img, 0, 0, width, height);
-    blob = await canvasToBlob(canvas, Math.max(quality, 0.3));
-  }
 
-  const name = file.name.replace(/\.[^.]+$/, ".jpg");
-  return new File([blob], name, { type: "image/jpeg" });
+    let blob = await canvasToBlob(canvas, quality);
+
+    while (blob.size > MAX_PHOTO_BYTES && quality > 0.1) {
+      quality -= 0.1;
+      blob = await canvasToBlob(canvas, quality);
+    }
+
+    while (blob.size > MAX_PHOTO_BYTES && width > 200) {
+      width = Math.round(width * 0.75);
+      height = Math.round(height * 0.75);
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+      blob = await canvasToBlob(canvas, Math.max(quality, 0.3));
+    }
+
+    const name = file.name.replace(/\.[^.]+$/, ".jpg");
+    return new File([blob], name, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
 }
 
 export async function resizePhotos(files: File[]): Promise<File[]> {

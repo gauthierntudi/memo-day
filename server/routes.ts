@@ -11,6 +11,7 @@ import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import sharp from "sharp";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
 
@@ -30,7 +31,7 @@ const uploadStorage = multer.diskStorage({
 
 const upload = multer({
   storage: uploadStorage,
-  limits: { fileSize: 1 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedExt = /\.(jpg|jpeg|png|gif|webp|heic)$/i;
     const allowedMime = /^image\/(jpeg|png|gif|webp|heic)/i;
@@ -139,18 +140,39 @@ export async function registerRoutes(
   app.use("/api", apiLimiter);
   app.use("/api", csrfProtection);
 
-  app.post("/api/uploads", requireAuth, upload.array("photos", 10), (req, res) => {
+  app.post("/api/uploads", requireAuth, upload.array("photos", 10), async (req, res) => {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
       return res.status(400).json({ message: "No files uploaded" });
     }
-    const urls = files.map(f => {
-      const data = fs.readFileSync(f.path);
-      const base64 = data.toString("base64");
-      const mime = f.mimetype || "image/jpeg";
-      fs.unlinkSync(f.path);
-      return `data:${mime};base64,${base64}`;
-    });
+    const MAX_BYTES = 600 * 1024;
+    const urls: string[] = [];
+    for (const f of files) {
+      const raw = fs.readFileSync(f.path);
+      try { fs.unlinkSync(f.path); } catch {}
+      let finalBuf = raw;
+      let mime = f.mimetype || "image/jpeg";
+      if (raw.length > MAX_BYTES) {
+        try {
+          let quality = 80;
+          let resized = await sharp(raw).jpeg({ quality }).toBuffer();
+          while (resized.length > MAX_BYTES && quality > 10) {
+            quality -= 10;
+            resized = await sharp(raw).jpeg({ quality }).toBuffer();
+          }
+          if (resized.length > MAX_BYTES) {
+            let width = 1920;
+            while (resized.length > MAX_BYTES && width > 200) {
+              width = Math.round(width * 0.75);
+              resized = await sharp(raw).resize({ width, withoutEnlargement: true }).jpeg({ quality: Math.max(quality, 30) }).toBuffer();
+            }
+          }
+          finalBuf = resized;
+          mime = "image/jpeg";
+        } catch {}
+      }
+      urls.push(`data:${mime};base64,${finalBuf.toString("base64")}`);
+    }
     res.json({ urls });
   });
 

@@ -105,6 +105,7 @@ export const dailyReports = pgTable("daily_reports", {
   materialsUsed: jsonb("materials_used").notNull().default(sql`'[]'::jsonb`),
   inventoryStatus: jsonb("inventory_status").notNull().default(sql`'[]'::jsonb`),
   overallProgress: integer("overall_progress").default(0),
+  photos: jsonb("photos").notNull().default(sql`'[]'::jsonb`),
   comments: text("comments"),
   status: text("status").notNull().default("draft"),
   submittedBy: text("submitted_by"),

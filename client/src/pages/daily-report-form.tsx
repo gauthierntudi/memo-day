@@ -105,6 +105,7 @@ export default function DailyReportForm() {
   const [materialsIn, setMaterialsIn] = useState<MaterialEntry[]>([]);
   const [materialsUsed, setMaterialsUsed] = useState<MaterialEntry[]>([]);
   const [inventoryStatus, setInventoryStatus] = useState<InventoryItem[]>([]);
+  const [reportPhotos, setReportPhotos] = useState<string[]>([]);
   const [comments, setComments] = useState("");
 
   const projectUsers = (allUsers || []).filter(u => {
@@ -140,6 +141,7 @@ export default function DailyReportForm() {
       setMaterialsUsed(existing.materialsUsed as MaterialEntry[]);
       setInventoryStatus(existing.inventoryStatus as InventoryItem[]);
 
+      setReportPhotos((existing.photos as string[]) || []);
       setComments(existing.comments || "");
     }
   }, [existing]);
@@ -170,6 +172,7 @@ export default function DailyReportForm() {
         materialsUsed,
         inventoryStatus,
         overallProgress: 0,
+        photos: reportPhotos,
         comments: comments || null,
         status,
       };
@@ -1053,6 +1056,71 @@ export default function DailyReportForm() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Camera className="h-4 w-4" /> Report Photos
+            <span className="text-xs text-muted-foreground font-normal">({reportPhotos.length}/10)</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            {reportPhotos.map((url, i) => (
+              <div key={i} className="relative w-28 h-20 rounded-lg overflow-hidden border group" data-testid={`report-photo-${i}`}>
+                <img src={url} alt={`Report photo ${i + 1}`} className="w-full h-full object-cover" />
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await fetch("/api/uploads", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+                      } catch {}
+                      setReportPhotos(prev => prev.filter((_, idx) => idx !== i));
+                    }}
+                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    data-testid={`button-remove-report-photo-${i}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {canEdit && reportPhotos.length < 10 && (
+              <label className="w-28 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors" data-testid="button-upload-report-photo">
+                <Camera className="h-5 w-5 text-muted-foreground/50" />
+                <span className="text-[10px] text-muted-foreground mt-1">Add Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files || files.length === 0) return;
+                    const remaining = 10 - reportPhotos.length;
+                    const toUpload = Array.from(files).slice(0, remaining);
+                    const formData = new FormData();
+                    toUpload.forEach(f => formData.append("photos", f));
+                    try {
+                      const res = await fetch("/api/uploads", { method: "POST", body: formData });
+                      if (!res.ok) throw new Error("Upload failed");
+                      const data = await res.json();
+                      setReportPhotos(prev => [...prev, ...data.urls].slice(0, 10));
+                    } catch {
+                      toast({ title: "Upload failed", variant: "destructive" });
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          {reportPhotos.length === 0 && !canEdit && (
+            <p className="text-sm text-muted-foreground">No photos attached</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">

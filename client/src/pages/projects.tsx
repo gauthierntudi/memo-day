@@ -44,6 +44,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { resizePhoto } from "@/lib/utils";
 import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, ImagePlus, X, ChevronDown, ChevronRight } from "lucide-react";
 import type { Project, User, DirectCostDetails, IndirectCostDetails } from "@shared/schema";
 import { CLIENT_TYPES, DIRECT_COST_LABELS, INDIRECT_COST_LABELS } from "@shared/schema";
@@ -654,13 +655,9 @@ function ProjectFormDialog({
                   <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    if (file.size > 1 * 1024 * 1024) {
-                      toast({ title: "File too large", description: "Each photo must be under 1 MB", variant: "destructive" });
-                      e.target.value = "";
-                      return;
-                    }
+                    const resized = await resizePhoto(file);
                     const fd = new FormData();
-                    fd.append("photos", file);
+                    fd.append("photos", resized);
                     try {
                       const res = await fetch("/api/uploads", { method: "POST", body: fd, credentials: "include" });
                       if (!res.ok) throw new Error("Upload failed");

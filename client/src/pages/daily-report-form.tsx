@@ -21,6 +21,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { resizePhotos } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -729,8 +730,9 @@ export default function DailyReportForm() {
                               onChange={async (e) => {
                                 const files = e.target.files;
                                 if (!files || files.length === 0) return;
+                                const resized = await resizePhotos(Array.from(files));
                                 const formData = new FormData();
-                                Array.from(files).forEach(f => formData.append("photos", f));
+                                resized.forEach(f => formData.append("photos", f));
                                 try {
                                   const res = await fetch("/api/uploads", {
                                     method: "POST",
@@ -1100,8 +1102,9 @@ export default function DailyReportForm() {
                     if (!files || files.length === 0) return;
                     const remaining = 10 - reportPhotos.length;
                     const toUpload = Array.from(files).slice(0, remaining);
+                    const resized = await resizePhotos(toUpload);
                     const formData = new FormData();
-                    toUpload.forEach(f => formData.append("photos", f));
+                    resized.forEach(f => formData.append("photos", f));
                     try {
                       const res = await fetch("/api/uploads", { method: "POST", body: formData });
                       if (!res.ok) throw new Error("Upload failed");

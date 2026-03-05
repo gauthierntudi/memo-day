@@ -248,24 +248,35 @@ export interface Milestone {
 }
 
 export const TRADES = [
+  "Assistant Surveyor",
+  "Assistant Surveyor Local",
   "Carpentry",
+  "Ceiling Worker",
   "Civil Works",
+  "Concrete Masons",
   "Electrical",
   "Finishing",
   "Fire Protection",
+  "General Labor",
   "Glazing",
   "HVAC",
   "Insulation",
   "Landscaping",
   "Masonry",
+  "Masonry Mason",
   "Mechanical",
   "Painting",
   "Plumbing",
   "Roofing",
+  "Scaffolders",
   "Steel Works",
+  "Storekeeper",
   "Structural",
   "Tiling",
+  "Timekeeper",
+  "Tower Crane Operator",
   "Waterproofing",
+  "Welder",
 ] as const;
 
 export const WEATHER_CONDITIONS = [

@@ -604,7 +604,7 @@ export default function DailyReportForm() {
                           <Input value={s.company} onChange={e => setSubcontractors(a => updateArrayItem(a, i, "company", e.target.value))} data-testid={`input-sub-company-${i}`} />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Specialty</Label>
+                          <Label className="text-xs">Trade</Label>
                           <Select value={s.specialty} onValueChange={v => setSubcontractors(a => updateArrayItem(a, i, "specialty", v))}>
                             <SelectTrigger data-testid={`select-sub-specialty-${i}`}><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent>{TRADES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>

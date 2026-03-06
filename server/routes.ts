@@ -307,7 +307,11 @@ export async function registerRoutes(
   });
 
   app.get("/api/projects", requireAuth, async (req, res) => {
-    const projects = await storage.getProjects();
+    let projects = await storage.getProjects();
+    const allowed = await getUserAllowedProjectIds(req.session.userId!);
+    if (!allowed.allProjects) {
+      projects = projects.filter(p => allowed.projectIds.includes(p.id));
+    }
     const pp = await getUserProjectPermissions(req.session.userId!);
     res.json(projects.map(p => stripProjectFields(p, pp.canViewOperational, pp.canViewFinancial)));
   });
@@ -315,6 +319,10 @@ export async function registerRoutes(
   app.get("/api/projects/:id", requireAuth, async (req, res) => {
     const project = await storage.getProject(Number(req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
+    const allowed = await getUserAllowedProjectIds(req.session.userId!);
+    if (!canAccessProject(allowed, project.id)) {
+      return res.status(403).json({ message: "You do not have access to this project" });
+    }
     const pp = await getUserProjectPermissions(req.session.userId!);
     res.json(stripProjectFields(project, pp.canViewOperational, pp.canViewFinancial));
   });
@@ -333,6 +341,10 @@ export async function registerRoutes(
   app.patch("/api/projects/:id", requireAuth, async (req, res) => {
     if (!(await requirePermission(req, res, "edit_projects"))) return;
     try {
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, Number(req.params.id))) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
       const partial = insertProjectSchema.partial().parse(req.body);
       const pp = await getUserProjectPermissions(req.session.userId!);
       if (!pp.canEditOperational) {
@@ -351,6 +363,10 @@ export async function registerRoutes(
 
   app.delete("/api/projects/:id", requireAuth, async (req, res) => {
     if (!(await requirePermission(req, res, "edit_projects"))) return;
+    const allowed = await getUserAllowedProjectIds(req.session.userId!);
+    if (!canAccessProject(allowed, Number(req.params.id))) {
+      return res.status(403).json({ message: "You do not have access to this project" });
+    }
     const deleted = await storage.deleteProject(Number(req.params.id));
     if (!deleted) return res.status(404).json({ message: "Project not found" });
     res.json({ message: "Project deleted" });

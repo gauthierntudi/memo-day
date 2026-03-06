@@ -79,7 +79,7 @@ Sub-items auto-sum to the main direct/indirect cost fields; users can also enter
 - **Security Headers**: Helmet middleware (X-Frame-Options, HSTS, X-Content-Type-Options, Referrer-Policy, etc.); CSP disabled due to inline styles/scripts
 - **Rate Limiting**: Login: 10 attempts per 15 minutes; API: 120 requests per minute
 - **CSRF Protection**: Origin header validation on mutating requests
-- **Authorization**: requireAuth middleware on all API routes; requirePermission for role-based access; project-scoped access control
+- **Authorization**: requireAuth middleware on all API routes; requirePermission for role-based access; project-scoped access control on all project/report/plan routes (GET, PATCH, DELETE)
 - **Input Validation**: Zod schemas on all write endpoints; Drizzle ORM prevents SQL injection
 - **Error Handling**: Generic error messages for 500-level errors; internal details logged server-side only
 - **Body Limits**: JSON/URL-encoded: 5MB; File uploads via multer: 20MB with image-only file filter

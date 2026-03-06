@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Activity, BarChart3, AlertTriangle, CheckCircle2, Target, Building2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -58,6 +59,9 @@ export default function ProjectsOverview() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canViewOperational = hasPermission("view_project_operational");
+  const canViewFinancial = hasPermission("view_project_financial");
 
   const generatePdf = useCallback(async () => {
     if (!contentRef.current) return;
@@ -125,49 +129,66 @@ export default function ProjectsOverview() {
     return cv !== 0 ? ((cv - cost) / cv) * 100 : null;
   }
 
-  const budgetProjects = all.filter(p => p.projectValue != null && p.budgetedCost != null);
+  const getEV = (p: any) => p.computedEarnedValue ?? ((p.billedAmount != null || p.unbilledAmount != null) ? (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0) : null);
+  const getATC = (p: any) => p.computedActualTotalCost ?? ((p.actualDirectCost != null || p.actualIndirectCost != null) ? (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0) : null);
+
+  const budgetProjects = all.filter(p => p.projectValue != null && (p.budgetedCost != null || (p as any).computedBudgetedGP != null));
   const hasBudgetData = budgetProjects.length > 0;
+  const useComputedBudgetGP = budgetProjects.length > 0 && budgetProjects[0].budgetedCost == null;
   const totalBudgetContractValue = budgetProjects.reduce((s, p) => s + (p.projectValue ?? 0), 0);
   const totalBudgetedCost = budgetProjects.reduce((s, p) => s + (p.budgetedCost ?? 0), 0);
-  const budgetedGP = calcGP(totalBudgetContractValue, totalBudgetedCost);
+  const budgetedGP = useComputedBudgetGP
+    ? (() => { const gps = budgetProjects.map(p => (p as any).computedBudgetedGP).filter((g: any) => g != null); return gps.length > 0 ? gps.reduce((s: number, g: number) => s + g, 0) / gps.length : null; })()
+    : calcGP(totalBudgetContractValue, totalBudgetedCost);
   const ownBudgetProjects = budgetProjects.filter(p => p.clientType === "Own");
   const ownBudgetCV = ownBudgetProjects.reduce((s, p) => s + (p.projectValue ?? 0), 0);
   const ownBudgetCost = ownBudgetProjects.reduce((s, p) => s + (p.budgetedCost ?? 0), 0);
-  const ownBudgetGP = ownBudgetProjects.length > 0 ? calcGP(ownBudgetCV, ownBudgetCost) : null;
+  const ownBudgetGP = ownBudgetProjects.length > 0 ? (useComputedBudgetGP
+    ? (() => { const gps = ownBudgetProjects.map(p => (p as any).computedBudgetedGP).filter((g: any) => g != null); return gps.length > 0 ? gps.reduce((s: number, g: number) => s + g, 0) / gps.length : null; })()
+    : calcGP(ownBudgetCV, ownBudgetCost)) : null;
   const extBudgetProjects = budgetProjects.filter(p => p.clientType !== "Own");
   const extBudgetCV = extBudgetProjects.reduce((s, p) => s + (p.projectValue ?? 0), 0);
   const extBudgetCost = extBudgetProjects.reduce((s, p) => s + (p.budgetedCost ?? 0), 0);
-  const extBudgetGP = extBudgetProjects.length > 0 ? calcGP(extBudgetCV, extBudgetCost) : null;
+  const extBudgetGP = extBudgetProjects.length > 0 ? (useComputedBudgetGP
+    ? (() => { const gps = extBudgetProjects.map(p => (p as any).computedBudgetedGP).filter((g: any) => g != null); return gps.length > 0 ? gps.reduce((s: number, g: number) => s + g, 0) / gps.length : null; })()
+    : calcGP(extBudgetCV, extBudgetCost)) : null;
 
-  const updatedProjects = all.filter(p => (p.updatedProjectValue ?? p.projectValue) != null && (p.updatedCost ?? p.budgetedCost) != null);
+  const updatedProjects = all.filter(p => (p.updatedProjectValue ?? p.projectValue) != null && ((p.updatedCost ?? p.budgetedCost) != null || (p as any).computedUpdatedGP != null));
   const hasUpdatedData = updatedProjects.length > 0;
+  const useComputedUpdGP = updatedProjects.length > 0 && (updatedProjects[0].updatedCost ?? updatedProjects[0].budgetedCost) == null;
   const totalUpdatedContractValue = updatedProjects.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
   const totalUpdatedCost = updatedProjects.reduce((s, p) => s + (p.updatedCost ?? p.budgetedCost ?? 0), 0);
-  const updatedGP = calcGP(totalUpdatedContractValue, totalUpdatedCost);
+  const updatedGP = useComputedUpdGP
+    ? (() => { const gps = updatedProjects.map(p => (p as any).computedUpdatedGP).filter((g: any) => g != null); return gps.length > 0 ? gps.reduce((s: number, g: number) => s + g, 0) / gps.length : null; })()
+    : calcGP(totalUpdatedContractValue, totalUpdatedCost);
   const ownUpdProjects = updatedProjects.filter(p => p.clientType === "Own");
   const ownUpdCV = ownUpdProjects.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
   const ownUpdCost = ownUpdProjects.reduce((s, p) => s + (p.updatedCost ?? p.budgetedCost ?? 0), 0);
-  const ownUpdGP = ownUpdProjects.length > 0 ? calcGP(ownUpdCV, ownUpdCost) : null;
+  const ownUpdGP = ownUpdProjects.length > 0 ? (useComputedUpdGP
+    ? (() => { const gps = ownUpdProjects.map(p => (p as any).computedUpdatedGP).filter((g: any) => g != null); return gps.length > 0 ? gps.reduce((s: number, g: number) => s + g, 0) / gps.length : null; })()
+    : calcGP(ownUpdCV, ownUpdCost)) : null;
   const extUpdProjects = updatedProjects.filter(p => p.clientType !== "Own");
   const extUpdCV = extUpdProjects.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
   const extUpdCost = extUpdProjects.reduce((s, p) => s + (p.updatedCost ?? p.budgetedCost ?? 0), 0);
-  const extUpdGP = extUpdProjects.length > 0 ? calcGP(extUpdCV, extUpdCost) : null;
+  const extUpdGP = extUpdProjects.length > 0 ? (useComputedUpdGP
+    ? (() => { const gps = extUpdProjects.map(p => (p as any).computedUpdatedGP).filter((g: any) => g != null); return gps.length > 0 ? gps.reduce((s: number, g: number) => s + g, 0) / gps.length : null; })()
+    : calcGP(extUpdCV, extUpdCost)) : null;
 
-  const currentProjects = all.filter(p => (p.billedAmount != null || p.unbilledAmount != null) && (p.actualDirectCost != null || p.actualIndirectCost != null));
+  const currentProjects = all.filter(p => getEV(p) != null && getATC(p) != null);
   const totalContractValue = all.reduce((s, p) => s + (p.updatedProjectValue ?? p.projectValue ?? 0), 0);
   const totalBilled = all.reduce((s, p) => s + (p.billedAmount ?? 0), 0);
-  const totalEarnedValue = currentProjects.reduce((s, p) => s + (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0), 0);
-  const totalActualCost = currentProjects.reduce((s, p) => s + (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0), 0);
+  const totalEarnedValue = currentProjects.reduce((s, p) => s + (getEV(p) ?? 0), 0);
+  const totalActualCost = currentProjects.reduce((s, p) => s + (getATC(p) ?? 0), 0);
   const totalCostVariance = totalEarnedValue - totalActualCost;
   const hasCurrentData = currentProjects.length > 0;
   const currentGP = calcGP(totalEarnedValue, totalActualCost);
   const ownCurProjects = currentProjects.filter(p => p.clientType === "Own");
-  const ownCurEV = ownCurProjects.reduce((s, p) => s + (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0), 0);
-  const ownCurCost = ownCurProjects.reduce((s, p) => s + (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0), 0);
+  const ownCurEV = ownCurProjects.reduce((s, p) => s + (getEV(p) ?? 0), 0);
+  const ownCurCost = ownCurProjects.reduce((s, p) => s + (getATC(p) ?? 0), 0);
   const ownCurGP = ownCurProjects.length > 0 ? calcGP(ownCurEV, ownCurCost) : null;
   const extCurProjects = currentProjects.filter(p => p.clientType !== "Own");
-  const extCurEV = extCurProjects.reduce((s, p) => s + (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0), 0);
-  const extCurCost = extCurProjects.reduce((s, p) => s + (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0), 0);
+  const extCurEV = extCurProjects.reduce((s, p) => s + (getEV(p) ?? 0), 0);
+  const extCurCost = extCurProjects.reduce((s, p) => s + (getATC(p) ?? 0), 0);
   const extCurGP = extCurProjects.length > 0 ? calcGP(extCurEV, extCurCost) : null;
 
   const projectsWithSpi = active.filter(p => p.spiIndex != null);
@@ -205,11 +226,11 @@ export default function ProjectsOverview() {
     }));
 
   const costData = active
-    .filter(p => (p.billedAmount ?? 0) > 0 || (p.actualDirectCost ?? 0) > 0)
+    .filter(p => (getEV(p) ?? 0) > 0 || (getATC(p) ?? 0) > 0)
     .map(p => ({
       name: p.code || p.name.slice(0, 12),
-      earnedValue: (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0),
-      actualCost: (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0),
+      earnedValue: getEV(p) ?? 0,
+      actualCost: getATC(p) ?? 0,
       contractValue: p.updatedProjectValue ?? p.projectValue ?? 0,
     }));
 
@@ -263,14 +284,14 @@ export default function ProjectsOverview() {
       <div ref={contentRef} className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="section-kpi-cards">
         <KpiCard title="Total Projects" value={all.length.toString()} subtitle={`${active.length} active`} icon={Building2} />
-        <KpiCard title="Portfolio Value" value={fmt$(totalContractValue)} subtitle={`Billed: ${fmt$(totalBilled)}`} icon={DollarSign} />
+        {canViewFinancial && <KpiCard title="Portfolio Value" value={fmt$(totalContractValue)} subtitle={`Billed: ${fmt$(totalBilled)}`} icon={DollarSign} />}
         <KpiCard title="Avg Progress" value={fmtPct(avgProgress)} subtitle={`Schedule: ${fmtPct(avgSchedule)}`} icon={Activity} />
-        <KpiCard title="Avg SPI" value={fmtIdx(avgSpi)} subtitle={avgSpi != null ? (avgSpi >= 1 ? "On/Ahead of schedule" : "Behind schedule") : undefined} icon={TrendingUp} color={avgSpi != null ? (avgSpi >= 1 ? "#10b981" : "#ef4444") : undefined} />
-        <KpiCard title="Avg CPI" value={fmtIdx(avgCpi)} subtitle={avgCpi != null ? (avgCpi >= 1 ? "Under budget" : "Over budget") : undefined} icon={TrendingDown} color={avgCpi != null ? (avgCpi >= 1 ? "#10b981" : "#ef4444") : undefined} />
-        <KpiCard title="Cost Variance" value={fmt$(totalCostVariance)} subtitle={totalCostVariance >= 0 ? "Favorable" : "Unfavorable"} icon={DollarSign} color={totalCostVariance >= 0 ? "#10b981" : "#ef4444"} />
+        {canViewFinancial && <KpiCard title="Avg SPI" value={fmtIdx(avgSpi)} subtitle={avgSpi != null ? (avgSpi >= 1 ? "On/Ahead of schedule" : "Behind schedule") : undefined} icon={TrendingUp} color={avgSpi != null ? (avgSpi >= 1 ? "#10b981" : "#ef4444") : undefined} />}
+        {canViewFinancial && <KpiCard title="Avg CPI" value={fmtIdx(avgCpi)} subtitle={avgCpi != null ? (avgCpi >= 1 ? "Under budget" : "Over budget") : undefined} icon={TrendingDown} color={avgCpi != null ? (avgCpi >= 1 ? "#10b981" : "#ef4444") : undefined} />}
+        {canViewFinancial && <KpiCard title="Cost Variance" value={fmt$(totalCostVariance)} subtitle={totalCostVariance >= 0 ? "Favorable" : "Unfavorable"} icon={DollarSign} color={totalCostVariance >= 0 ? "#10b981" : "#ef4444"} />}
       </div>
 
-      {(hasBudgetData || hasUpdatedData || hasCurrentData) && (
+      {canViewFinancial && (hasBudgetData || hasUpdatedData || hasCurrentData) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="section-gross-profit-cards">
           {hasBudgetData && (
             <Card data-testid="kpi-budget-gp">
@@ -368,7 +389,7 @@ export default function ProjectsOverview() {
         </div>
       )}
 
-      <Card data-testid="section-portfolio-appreciation" className={overallHealth.bg}>
+      {canViewFinancial && <Card data-testid="section-portfolio-appreciation" className={overallHealth.bg}>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold">Portfolio Performance Appreciation</CardTitle>
         </CardHeader>
@@ -412,7 +433,7 @@ export default function ProjectsOverview() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2" data-testid="chart-progress-comparison">
@@ -464,59 +485,60 @@ export default function ProjectsOverview() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card data-testid="chart-spi-cpi">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> SPI & CPI by Project
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {spiCpiData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={spiCpiData} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="name" fontSize={11} />
-                  <YAxis domain={[0, "auto"]} fontSize={11} />
-                  <Tooltip formatter={(v: number) => v.toFixed(2)} />
-                  <Bar dataKey="SPI" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="CPI" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Legend />
-                  {/* reference line at 1.0 */}
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-12">No SPI/CPI data available</p>
-            )}
-          </CardContent>
-        </Card>
+      {canViewFinancial && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card data-testid="chart-spi-cpi">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" /> SPI & CPI by Project
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {spiCpiData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={spiCpiData} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="name" fontSize={11} />
+                    <YAxis domain={[0, "auto"]} fontSize={11} />
+                    <Tooltip formatter={(v: number) => v.toFixed(2)} />
+                    <Bar dataKey="SPI" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="CPI" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Legend />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-12">No SPI/CPI data available</p>
+              )}
+            </CardContent>
+          </Card>
 
-        <Card data-testid="chart-cost-analysis">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <DollarSign className="h-4 w-4" /> Cost Analysis by Project
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {costData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={costData} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="name" fontSize={11} />
-                  <YAxis fontSize={11} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => fmt$(v)} />
-                  <Bar dataKey="contractValue" name="Contract Value" fill="#8b5cf6" opacity={0.3} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="earnedValue" name="Earned Value" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="actualCost" name="Actual Cost" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  <Legend />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-12">No cost data available</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          <Card data-testid="chart-cost-analysis">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4" /> Cost Analysis by Project
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {costData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={costData} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="name" fontSize={11} />
+                    <YAxis fontSize={11} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number) => fmt$(v)} />
+                    <Bar dataKey="contractValue" name="Contract Value" fill="#8b5cf6" opacity={0.3} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="earnedValue" name="Earned Value" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="actualCost" name="Actual Cost" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    <Legend />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-12">No cost data available</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card data-testid="chart-client-type">
@@ -546,9 +568,9 @@ export default function ProjectsOverview() {
                   <tr className="border-b text-muted-foreground">
                     <th className="text-left py-1.5 px-2 font-medium">Project</th>
                     <th className="text-right py-1.5 px-2 font-medium">Progress</th>
-                    <th className="text-right py-1.5 px-2 font-medium">SPI</th>
-                    <th className="text-right py-1.5 px-2 font-medium">CPI</th>
-                    <th className="text-right py-1.5 px-2 font-medium">Delay</th>
+                    {canViewFinancial && <th className="text-right py-1.5 px-2 font-medium">SPI</th>}
+                    {canViewFinancial && <th className="text-right py-1.5 px-2 font-medium">CPI</th>}
+                    {canViewOperational && <th className="text-right py-1.5 px-2 font-medium">Delay</th>}
                     <th className="text-center py-1.5 px-2 font-medium">Status</th>
                   </tr>
                 </thead>
@@ -564,21 +586,27 @@ export default function ProjectsOverview() {
                           <span>{fmtPct(p.overallProgress)}</span>
                         </div>
                       </td>
-                      <td className="text-right py-1.5 px-2">
-                        <span className={p.spiIndex != null ? (p.spiIndex >= 1 ? "text-emerald-600" : "text-red-500") : ""}>
-                          {fmtIdx(p.spiIndex)}
-                        </span>
-                      </td>
-                      <td className="text-right py-1.5 px-2">
-                        <span className={p.cpiIndex != null ? (p.cpiIndex >= 1 ? "text-emerald-600" : "text-red-500") : ""}>
-                          {fmtIdx(p.cpiIndex)}
-                        </span>
-                      </td>
-                      <td className="text-right py-1.5 px-2">
-                        {(p.delayDays ?? 0) > 0 ? (
-                          <span className="text-amber-600">{p.delayDays}d</span>
-                        ) : "—"}
-                      </td>
+                      {canViewFinancial && (
+                        <td className="text-right py-1.5 px-2">
+                          <span className={p.spiIndex != null ? (p.spiIndex >= 1 ? "text-emerald-600" : "text-red-500") : ""}>
+                            {fmtIdx(p.spiIndex)}
+                          </span>
+                        </td>
+                      )}
+                      {canViewFinancial && (
+                        <td className="text-right py-1.5 px-2">
+                          <span className={p.cpiIndex != null ? (p.cpiIndex >= 1 ? "text-emerald-600" : "text-red-500") : ""}>
+                            {fmtIdx(p.cpiIndex)}
+                          </span>
+                        </td>
+                      )}
+                      {canViewOperational && (
+                        <td className="text-right py-1.5 px-2">
+                          {(p.delayDays ?? 0) > 0 ? (
+                            <span className="text-amber-600">{p.delayDays}d</span>
+                          ) : "—"}
+                        </td>
+                      )}
                       <td className="text-center py-1.5 px-2">
                         <Badge variant={p.status === "active" ? "default" : p.status === "completed" ? "secondary" : "outline"} className="text-[10px] px-1.5 py-0">
                           {p.status}

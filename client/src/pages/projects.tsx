@@ -45,7 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { resizePhoto } from "@/lib/utils";
-import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, ImagePlus, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, ImagePlus, X, ChevronDown, ChevronRight, Activity } from "lucide-react";
 import type { Project, User, DirectCostDetails, IndirectCostDetails } from "@shared/schema";
 import { CLIENT_TYPES, DIRECT_COST_LABELS, INDIRECT_COST_LABELS } from "@shared/schema";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -249,6 +249,9 @@ function ProjectFormDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canEditOperational = hasPermission("edit_project_operational");
+  const canEditFinancial = hasPermission("edit_project_financial");
   const isEditing = !!project;
 
   const [form, setForm] = useState<ProjectFormData>({ ...emptyForm });
@@ -434,173 +437,185 @@ function ProjectFormDialog({
               <Input type="date" value={form.updatedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, updatedDeliveryDate: e.target.value || null }))} data-testid="input-updated-delivery" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Contract Value (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.projectValue ?? ""} onChange={e => setForm(f => ({ ...f, projectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter value in USD" data-testid="input-project-value" />
-            </div>
-            <div className="space-y-2">
-              <Label>Updated Contract Value (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.updatedProjectValue ?? ""} onChange={e => setForm(f => ({ ...f, updatedProjectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter updated value in USD" data-testid="input-updated-project-value" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Budgeted Cost (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.budgetedCost ?? ""} onChange={e => setForm(f => ({ ...f, budgetedCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-budgeted-cost" />
-            </div>
-            <div className="space-y-2">
-              <Label>Updated Cost (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.updatedCost ?? ""} onChange={e => setForm(f => ({ ...f, updatedCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-updated-cost" />
-            </div>
-          </div>
-          {(() => {
-            const budgetedGP = (form.projectValue != null && form.budgetedCost != null && form.projectValue !== 0)
-              ? ((form.projectValue - form.budgetedCost) / form.projectValue) * 100 : null;
-            const updatedGP = (() => {
-              const cv = form.updatedProjectValue ?? form.projectValue;
-              const uc = form.updatedCost ?? form.budgetedCost;
-              return (cv != null && uc != null && cv !== 0) ? ((cv - uc) / cv) * 100 : null;
-            })();
-            if (budgetedGP == null && updatedGP == null) return null;
-            return (
+          {canEditOperational && (
+            <>
+              <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2 flex items-center gap-1"><Activity className="h-3 w-3" /> Operational Indicators</p>
               <div className="grid grid-cols-2 gap-3">
-                {budgetedGP != null && (
-                  <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
-                    <span className="text-sm font-medium">Budgeted Gross Profit</span>
-                    <span className={`text-sm font-bold ${budgetedGP >= 0 ? "text-green-600" : "text-red-500"}`} data-testid="text-budgeted-gross-profit">{budgetedGP.toFixed(1)}%</span>
-                  </div>
-                )}
-                {updatedGP != null && (
-                  <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
-                    <span className="text-sm font-medium">Updated Gross Profit</span>
-                    <span className={`text-sm font-bold ${updatedGP >= 0 ? "text-green-600" : "text-red-500"}`} data-testid="text-updated-gross-profit">{updatedGP.toFixed(1)}%</span>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label>Budgeted Cost (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.budgetedCost ?? ""} onChange={e => setForm(f => ({ ...f, budgetedCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-budgeted-cost" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Updated Cost (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.updatedCost ?? ""} onChange={e => setForm(f => ({ ...f, updatedCost: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-updated-cost" />
+                </div>
               </div>
-            );
-          })()}
-          <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Financial Tracking</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Billed Amount (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.billedAmount ?? ""} onChange={e => setForm(f => ({ ...f, billedAmount: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-billed-amount" />
-            </div>
-            <div className="space-y-2">
-              <Label>Unbilled Amount (USD)</Label>
-              <Input type="number" min={0} step={0.01} value={form.unbilledAmount ?? ""} onChange={e => setForm(f => ({ ...f, unbilledAmount: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-unbilled-amount" />
-            </div>
-          </div>
-          {(form.billedAmount != null || form.unbilledAmount != null) && (
-            <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
-              <span className="text-sm font-medium">Earned Value (USD)</span>
-              <span className="text-sm font-bold" data-testid="text-earned-value">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((form.billedAmount ?? 0) + (form.unbilledAmount ?? 0))}</span>
-            </div>
+              <CostSection
+                label="A. Actual Direct Cost (USD)"
+                mainValue={form.actualDirectCost}
+                onMainChange={(v) => setForm(f => ({ ...f, actualDirectCost: v }))}
+                details={form.directCostDetails}
+                onDetailsChange={(d) => {
+                  const sum = Object.values(d).reduce((s: number, v) => s + (v ?? 0), 0);
+                  const hasAny = Object.values(d).some(v => v != null);
+                  setForm(f => ({ ...f, directCostDetails: d, actualDirectCost: hasAny ? sum : null }));
+                }}
+                labels={DIRECT_COST_LABELS}
+                testIdPrefix="direct"
+              />
+              <CostSection
+                label="B. Actual Indirect Cost (USD)"
+                mainValue={form.actualIndirectCost}
+                onMainChange={(v) => setForm(f => ({ ...f, actualIndirectCost: v }))}
+                details={form.indirectCostDetails}
+                onDetailsChange={(d) => {
+                  const sum = Object.values(d).reduce((s: number, v) => s + (v ?? 0), 0);
+                  const hasAny = Object.values(d).some(v => v != null);
+                  setForm(f => ({ ...f, indirectCostDetails: d, actualIndirectCost: hasAny ? sum : null }));
+                }}
+                labels={INDIRECT_COST_LABELS}
+                testIdPrefix="indirect"
+              />
+              {(form.actualDirectCost != null || form.actualIndirectCost != null) && (
+                <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+                  <span className="text-sm font-medium">Actual Total Cost (USD)</span>
+                  <span className="text-sm font-bold" data-testid="text-actual-total-cost">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((form.actualDirectCost ?? 0) + (form.actualIndirectCost ?? 0))}</span>
+                </div>
+              )}
+            </>
           )}
-          <CostSection
-            label="A. Actual Direct Cost (USD)"
-            mainValue={form.actualDirectCost}
-            onMainChange={(v) => setForm(f => ({ ...f, actualDirectCost: v }))}
-            details={form.directCostDetails}
-            onDetailsChange={(d) => {
-              const sum = Object.values(d).reduce((s: number, v) => s + (v ?? 0), 0);
-              const hasAny = Object.values(d).some(v => v != null);
-              setForm(f => ({ ...f, directCostDetails: d, actualDirectCost: hasAny ? sum : null }));
-            }}
-            labels={DIRECT_COST_LABELS}
-            testIdPrefix="direct"
-          />
-          <CostSection
-            label="B. Actual Indirect Cost (USD)"
-            mainValue={form.actualIndirectCost}
-            onMainChange={(v) => setForm(f => ({ ...f, actualIndirectCost: v }))}
-            details={form.indirectCostDetails}
-            onDetailsChange={(d) => {
-              const sum = Object.values(d).reduce((s: number, v) => s + (v ?? 0), 0);
-              const hasAny = Object.values(d).some(v => v != null);
-              setForm(f => ({ ...f, indirectCostDetails: d, actualIndirectCost: hasAny ? sum : null }));
-            }}
-            labels={INDIRECT_COST_LABELS}
-            testIdPrefix="indirect"
-          />
-          {(form.actualDirectCost != null || form.actualIndirectCost != null) && (
-            <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
-              <span className="text-sm font-medium">Actual Total Cost (USD)</span>
-              <span className="text-sm font-bold" data-testid="text-actual-total-cost">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((form.actualDirectCost ?? 0) + (form.actualIndirectCost ?? 0))}</span>
-            </div>
-          )}
-          <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2">Performance Metrics</p>
-          {(() => {
-            const autoDelay = computeDelayFromBaseline();
-            const baselineRef = form.revisedBaselineDate ?? form.plannedDeliveryDate;
-            return (
-              <>
-                {autoDelay != null && baselineRef && (
-                  <p className="text-[11px] text-muted-foreground bg-blue-50 dark:bg-blue-950/30 rounded-md px-3 py-1.5">
-                    Delay referenced against {form.revisedBaselineDate ? "Revised Baseline" : "Planned Completion"}: {baselineRef}
-                  </p>
-                )}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label>Delay (Days)</Label>
-                    {autoDelay != null ? (
-                      <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-delay-days">
-                        <span className={`font-bold text-sm ${autoDelay > 0 ? "text-red-500" : "text-green-600"}`}>{autoDelay}</span>
-                        <span className="text-xs text-muted-foreground">(auto)</span>
+          {canEditOperational && (
+            <>
+              {(() => {
+                const autoDelay = computeDelayFromBaseline();
+                const baselineRef = form.revisedBaselineDate ?? form.plannedDeliveryDate;
+                return (
+                  <>
+                    {autoDelay != null && baselineRef && (
+                      <p className="text-[11px] text-muted-foreground bg-blue-50 dark:bg-blue-950/30 rounded-md px-3 py-1.5">
+                        Delay referenced against {form.revisedBaselineDate ? "Revised Baseline" : "Planned Completion"}: {baselineRef}
+                      </p>
+                    )}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label>Delay (Days)</Label>
+                        {autoDelay != null ? (
+                          <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-delay-days">
+                            <span className={`font-bold text-sm ${autoDelay > 0 ? "text-red-500" : "text-green-600"}`}>{autoDelay}</span>
+                            <span className="text-xs text-muted-foreground">(auto)</span>
+                          </div>
+                        ) : (
+                          <Input type="number" step={1} value={form.delayDays ?? ""} onChange={e => setForm(f => ({ ...f, delayDays: e.target.value ? Number(e.target.value) : null }))} placeholder="0" data-testid="input-delay-days" />
+                        )}
                       </div>
-                    ) : (
-                      <Input type="number" step={1} value={form.delayDays ?? ""} onChange={e => setForm(f => ({ ...f, delayDays: e.target.value ? Number(e.target.value) : null }))} placeholder="0" data-testid="input-delay-days" />
+                      <div className="space-y-2">
+                        <Label>Schedule %</Label>
+                        <Input type="number" min={0} max={100} step={0.01} value={form.schedulePercentage ?? ""} onChange={e => setForm(f => ({ ...f, schedulePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-schedule-percentage" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Performance %</Label>
+                        <Input type="number" min={0} max={100} step={0.01} value={form.performancePercentage ?? ""} onChange={e => setForm(f => ({ ...f, performancePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-performance-percentage" />
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </>
+          )}
+          {canEditFinancial && (
+            <>
+              <p className="text-xs font-semibold text-muted-foreground pt-2 border-t mt-2 flex items-center gap-1"><DollarSign className="h-3 w-3" /> Financial Indicators</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Contract Value (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.projectValue ?? ""} onChange={e => setForm(f => ({ ...f, projectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter value in USD" data-testid="input-project-value" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Updated Contract Value (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.updatedProjectValue ?? ""} onChange={e => setForm(f => ({ ...f, updatedProjectValue: e.target.value ? Number(e.target.value) : null }))} placeholder="Enter updated value in USD" data-testid="input-updated-project-value" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Billed Amount (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.billedAmount ?? ""} onChange={e => setForm(f => ({ ...f, billedAmount: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-billed-amount" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Unbilled Amount (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.unbilledAmount ?? ""} onChange={e => setForm(f => ({ ...f, unbilledAmount: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-unbilled-amount" />
+                </div>
+              </div>
+              {(form.billedAmount != null || form.unbilledAmount != null) && (
+                <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+                  <span className="text-sm font-medium">Earned Value (USD)</span>
+                  <span className="text-sm font-bold" data-testid="text-earned-value">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((form.billedAmount ?? 0) + (form.unbilledAmount ?? 0))}</span>
+                </div>
+              )}
+              {(() => {
+                const budgetedGP = (form.projectValue != null && form.budgetedCost != null && form.projectValue !== 0)
+                  ? ((form.projectValue - form.budgetedCost) / form.projectValue) * 100 : null;
+                const updatedGP = (() => {
+                  const cv = form.updatedProjectValue ?? form.projectValue;
+                  const uc = form.updatedCost ?? form.budgetedCost;
+                  return (cv != null && uc != null && cv !== 0) ? ((cv - uc) / cv) * 100 : null;
+                })();
+                if (budgetedGP == null && updatedGP == null) return null;
+                return (
+                  <div className="grid grid-cols-2 gap-3">
+                    {budgetedGP != null && (
+                      <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+                        <span className="text-sm font-medium">Budgeted Gross Profit</span>
+                        <span className={`text-sm font-bold ${budgetedGP >= 0 ? "text-green-600" : "text-red-500"}`} data-testid="text-budgeted-gross-profit">{budgetedGP.toFixed(1)}%</span>
+                      </div>
+                    )}
+                    {updatedGP != null && (
+                      <div className="flex justify-between items-center bg-muted/50 rounded-md px-3 py-2">
+                        <span className="text-sm font-medium">Updated Gross Profit</span>
+                        <span className={`text-sm font-bold ${updatedGP >= 0 ? "text-green-600" : "text-red-500"}`} data-testid="text-updated-gross-profit">{updatedGP.toFixed(1)}%</span>
+                      </div>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <Label>Schedule %</Label>
-                    <Input type="number" min={0} max={100} step={0.01} value={form.schedulePercentage ?? ""} onChange={e => setForm(f => ({ ...f, schedulePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-schedule-percentage" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Performance %</Label>
-                    <Input type="number" min={0} max={100} step={0.01} value={form.performancePercentage ?? ""} onChange={e => setForm(f => ({ ...f, performancePercentage: e.target.value ? Number(e.target.value) : null }))} placeholder="0.00" data-testid="input-performance-percentage" />
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-          {(() => {
-            const finalSchedule = form.schedulePercentage;
-            const computedSpi = (form.performancePercentage != null && finalSchedule != null && finalSchedule !== 0)
-              ? form.performancePercentage / finalSchedule : null;
-            const earnedValueForm = (form.billedAmount != null || form.unbilledAmount != null)
-              ? (form.billedAmount ?? 0) + (form.unbilledAmount ?? 0) : null;
-            const actualTotalCostForm = (form.actualDirectCost != null || form.actualIndirectCost != null)
-              ? (form.actualDirectCost ?? 0) + (form.actualIndirectCost ?? 0) : null;
-            const computedCpi = (earnedValueForm != null && actualTotalCostForm != null && actualTotalCostForm !== 0)
-              ? earnedValueForm / actualTotalCostForm : null;
-            return (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>SPI (Schedule Performance Index)</Label>
-                  {computedSpi != null ? (
-                    <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-spi-index">
-                      <span className={`font-bold text-sm ${computedSpi < 1 ? "text-red-500" : "text-green-600"}`}>{computedSpi.toFixed(2)}</span>
-                      <span className="text-xs text-muted-foreground">(auto-calculated)</span>
+                );
+              })()}
+              {(() => {
+                const finalSchedule = form.schedulePercentage;
+                const computedSpi = (form.performancePercentage != null && finalSchedule != null && finalSchedule !== 0)
+                  ? form.performancePercentage / finalSchedule : null;
+                const earnedValueForm = (form.billedAmount != null || form.unbilledAmount != null)
+                  ? (form.billedAmount ?? 0) + (form.unbilledAmount ?? 0) : null;
+                const actualTotalCostForm = (form.actualDirectCost != null || form.actualIndirectCost != null)
+                  ? (form.actualDirectCost ?? 0) + (form.actualIndirectCost ?? 0) : null;
+                const computedCpi = (earnedValueForm != null && actualTotalCostForm != null && actualTotalCostForm !== 0)
+                  ? earnedValueForm / actualTotalCostForm : null;
+                return (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>SPI (Schedule Performance Index)</Label>
+                      {computedSpi != null ? (
+                        <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-spi-index">
+                          <span className={`font-bold text-sm ${computedSpi < 1 ? "text-red-500" : "text-green-600"}`}>{computedSpi.toFixed(2)}</span>
+                          <span className="text-xs text-muted-foreground">(auto-calculated)</span>
+                        </div>
+                      ) : (
+                        <Input type="number" min={0} step={0.01} value={form.spiIndex ?? ""} onChange={e => setForm(f => ({ ...f, spiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-spi-index" />
+                      )}
                     </div>
-                  ) : (
-                    <Input type="number" min={0} step={0.01} value={form.spiIndex ?? ""} onChange={e => setForm(f => ({ ...f, spiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-spi-index" />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>CPI (Cost Performance Index)</Label>
-                  {computedCpi != null ? (
-                    <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-cpi-index">
-                      <span className={`font-bold text-sm ${computedCpi < 1 ? "text-red-500" : "text-green-600"}`}>{computedCpi.toFixed(2)}</span>
-                      <span className="text-xs text-muted-foreground">(auto-calculated)</span>
+                    <div className="space-y-2">
+                      <Label>CPI (Cost Performance Index)</Label>
+                      {computedCpi != null ? (
+                        <div className="flex items-center bg-muted/50 rounded-md px-3 py-2 h-10 gap-2" data-testid="text-cpi-index">
+                          <span className={`font-bold text-sm ${computedCpi < 1 ? "text-red-500" : "text-green-600"}`}>{computedCpi.toFixed(2)}</span>
+                          <span className="text-xs text-muted-foreground">(auto-calculated)</span>
+                        </div>
+                      ) : (
+                        <Input type="number" min={0} step={0.01} value={form.cpiIndex ?? ""} onChange={e => setForm(f => ({ ...f, cpiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-cpi-index" />
+                      )}
                     </div>
-                  ) : (
-                    <Input type="number" min={0} step={0.01} value={form.cpiIndex ?? ""} onChange={e => setForm(f => ({ ...f, cpiIndex: e.target.value ? Number(e.target.value) : null }))} placeholder="1.00" data-testid="input-cpi-index" />
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+                  </div>
+                );
+              })()}
+            </>
+          )}
           <div className="space-y-2">
             <Label>Overall Progress: {form.overallProgress ?? 0}%</Label>
             <Slider value={[form.overallProgress ?? 0]} onValueChange={v => setForm(f => ({ ...f, overallProgress: v[0] }))} min={0} max={100} step={1} data-testid="slider-overall-progress" />
@@ -679,6 +694,10 @@ export default function Projects() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canEditProjects = hasPermission("edit_projects");
+  const canViewOperational = hasPermission("view_project_operational");
+  const canEditOperational = hasPermission("edit_project_operational");
+  const canViewFinancial = hasPermission("view_project_financial");
+  const canEditFinancial = hasPermission("edit_project_financial");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
   const [projectFilter, setProjectFilter] = useState("all");
@@ -778,24 +797,25 @@ export default function Projects() {
 
   const p = selectedProject;
 
-  const ev = p && (p.billedAmount != null || p.unbilledAmount != null)
-    ? (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0) : null;
-  const actualTotalCost = p && (p.actualDirectCost != null || p.actualIndirectCost != null)
-    ? (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0) : null;
-  const costVariance = ev != null && actualTotalCost != null ? ev - actualTotalCost : null;
+  const pAny = p as any;
+  const ev = pAny?.computedEarnedValue ?? (p && (p.billedAmount != null || p.unbilledAmount != null)
+    ? (p.billedAmount ?? 0) + (p.unbilledAmount ?? 0) : null);
+  const actualTotalCost = pAny?.computedActualTotalCost ?? (p && (p.actualDirectCost != null || p.actualIndirectCost != null)
+    ? (p.actualDirectCost ?? 0) + (p.actualIndirectCost ?? 0) : null);
+  const costVariance = pAny?.computedCostVariance ?? (ev != null && actualTotalCost != null ? ev - actualTotalCost : null);
   const costVariancePct = costVariance != null && ev !== 0 ? (costVariance / ev!) * 100 : null;
   const contractAmount = p ? (p.updatedProjectValue ?? p.projectValue) : null;
   const financialPct = ev != null && contractAmount != null && contractAmount !== 0 ? (ev / contractAmount) * 100 : null;
   const displaySpi = p?.spiIndex ?? ((p?.performancePercentage != null && p?.schedulePercentage != null && p.schedulePercentage !== 0) ? p.performancePercentage / p.schedulePercentage : null);
   const displayCpi = p?.cpiIndex ?? (ev != null && actualTotalCost != null && actualTotalCost !== 0 ? ev / actualTotalCost : null);
-  const budgetedGP = p && p.projectValue != null && p.budgetedCost != null && p.projectValue !== 0
-    ? ((p.projectValue - p.budgetedCost) / p.projectValue) * 100 : null;
+  const budgetedGP = pAny?.computedBudgetedGP ?? (p && p.projectValue != null && p.budgetedCost != null && p.projectValue !== 0
+    ? ((p.projectValue - p.budgetedCost) / p.projectValue) * 100 : null);
   const updatedCV = p ? (p.updatedProjectValue ?? p.projectValue) : null;
   const updatedC = p ? (p.updatedCost ?? p.budgetedCost) : null;
-  const updatedGP = updatedCV != null && updatedC != null && updatedCV !== 0
-    ? ((updatedCV - updatedC) / updatedCV) * 100 : null;
-  const currentGP = ev != null && actualTotalCost != null && ev !== 0
-    ? ((ev - actualTotalCost) / ev) * 100 : null;
+  const updatedGP = pAny?.computedUpdatedGP ?? (updatedCV != null && updatedC != null && updatedCV !== 0
+    ? ((updatedCV - updatedC) / updatedCV) * 100 : null);
+  const currentGP = pAny?.computedCurrentGP ?? (ev != null && actualTotalCost != null && ev !== 0
+    ? ((ev - actualTotalCost) / ev) * 100 : null);
   const assignedPMs = p ? getAssignedUsersByRole(p.id, "Project Manager") : [];
   const assignedDMs = p ? getAssignedUsersByRole(p.id, "Development Manager") : [];
   const achieved = p?.overallProgress ?? 0;
@@ -912,125 +932,150 @@ export default function Projects() {
                 <p className="text-[10px] text-muted-foreground mt-1">Schedule: {planned}%</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="py-3 px-4">
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">SPI</p>
-                <p className={`text-2xl font-bold ${displaySpi != null ? (displaySpi >= 1 ? "text-emerald-600" : "text-red-500") : ""}`}>{displaySpi != null ? displaySpi.toFixed(2) : "—"}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{displaySpi != null ? (displaySpi >= 1 ? "On/Ahead of schedule" : "Behind schedule") : "Not computed"}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-3 px-4">
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">CPI</p>
-                <p className={`text-2xl font-bold ${displayCpi != null ? (displayCpi >= 1 ? "text-emerald-600" : "text-red-500") : ""}`}>{displayCpi != null ? displayCpi.toFixed(2) : "—"}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{displayCpi != null ? (displayCpi >= 1 ? "Under budget" : "Over budget") : "Not computed"}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-3 px-4">
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Cost Variance</p>
-                <p className={`text-2xl font-bold ${costVariance != null ? (costVariance >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{costVariance != null ? formatCurrency(costVariance) : "—"}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{costVariancePct != null ? `${costVariancePct.toFixed(1)}%` : ""} {costVariance != null ? (costVariance >= 0 ? "Favorable" : "Unfavorable") : ""}</p>
-              </CardContent>
-            </Card>
+            {canViewFinancial && (
+              <Card>
+                <CardContent className="py-3 px-4">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">SPI</p>
+                  <p className={`text-2xl font-bold ${displaySpi != null ? (displaySpi >= 1 ? "text-emerald-600" : "text-red-500") : ""}`}>{displaySpi != null ? displaySpi.toFixed(2) : "—"}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{displaySpi != null ? (displaySpi >= 1 ? "On/Ahead of schedule" : "Behind schedule") : "Not computed"}</p>
+                </CardContent>
+              </Card>
+            )}
+            {canViewFinancial && (
+              <Card>
+                <CardContent className="py-3 px-4">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">CPI</p>
+                  <p className={`text-2xl font-bold ${displayCpi != null ? (displayCpi >= 1 ? "text-emerald-600" : "text-red-500") : ""}`}>{displayCpi != null ? displayCpi.toFixed(2) : "—"}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{displayCpi != null ? (displayCpi >= 1 ? "Under budget" : "Over budget") : "Not computed"}</p>
+                </CardContent>
+              </Card>
+            )}
+            {canViewFinancial && (
+              <Card>
+                <CardContent className="py-3 px-4">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Cost Variance</p>
+                  <p className={`text-2xl font-bold ${costVariance != null ? (costVariance >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{costVariance != null ? formatCurrency(costVariance) : "—"}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{costVariancePct != null ? `${costVariancePct.toFixed(1)}%` : ""} {costVariance != null ? (costVariance >= 0 ? "Favorable" : "Unfavorable") : ""}</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card data-testid="section-project-info">
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">Project Information</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-2 text-sm">
+          <Card data-testid="section-project-info">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold">Project Information</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-2 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                 <div className="flex justify-between"><span className="text-muted-foreground">Code:</span><span className="font-medium">{p.code}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Location:</span><span className="font-medium">{p.location}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Client:</span><span className="font-medium">{p.client}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Client Type:</span><Badge variant="outline" className="text-xs">{p.clientType || "Own"}</Badge></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Project Manager:</span><span className="font-medium text-xs" data-testid={`text-pm-${p.id}`}>{assignedPMs.length > 0 ? assignedPMs.map(u => u.name).join(", ") : <span className="text-muted-foreground italic">Not assigned</span>}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Dev. Manager:</span><span className="font-medium text-xs" data-testid={`text-dm-${p.id}`}>{assignedDMs.length > 0 ? assignedDMs.map(u => u.name).join(", ") : <span className="text-muted-foreground italic">Not assigned</span>}</span></div>
-                {p.scopeOfWork && <div className="pt-1 border-t"><span className="text-muted-foreground text-xs">Scope:</span><p className="text-xs mt-0.5">{p.scopeOfWork}</p></div>}
-              </CardContent>
-            </Card>
-
-            <Card data-testid="section-schedule">
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">Schedule & Performance</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-2 text-sm">
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 border-t pt-2 mt-2">
                 {p.startDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Start Date:</span><span className="font-medium">{p.startDate}</span></div>}
                 {p.plannedDeliveryDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Planned Completion:</span><span className="font-medium">{p.plannedDeliveryDate}</span></div>}
                 {p.revisedBaselineDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Revised Baseline:</span><span className="font-medium">{p.revisedBaselineDate}</span></div>}
                 {p.updatedDeliveryDate && <div className="flex justify-between"><span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Expected Completion:</span><span className="font-medium">{p.updatedDeliveryDate}</span></div>}
-                <div className="border-t pt-2 mt-2 space-y-2">
+              </div>
+              {p.scopeOfWork && <div className="pt-1 border-t"><span className="text-muted-foreground text-xs">Scope:</span><p className="text-xs mt-0.5">{p.scopeOfWork}</p></div>}
+            </CardContent>
+          </Card>
+
+          {canViewOperational && (
+            <Card data-testid="section-operational-indicators">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Activity className="h-4 w-4" /> Operational Indicators
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Budgeted Cost:</span><span className="font-medium">{formatCurrency(p.budgetedCost)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Updated Cost:</span><span className="font-medium">{formatCurrency(p.updatedCost)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Actual Total Cost:</span><span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <CostTileBreakdown label="Direct Cost" amount={p.actualDirectCost} details={p.directCostDetails as DirectCostDetails | null} labels={DIRECT_COST_LABELS} testIdPrefix="direct" />
+                  <CostTileBreakdown label="Indirect Cost" amount={p.actualIndirectCost} details={p.indirectCostDetails as IndirectCostDetails | null} labels={INDIRECT_COST_LABELS} testIdPrefix="indirect" />
+                </div>
+                <div className="border-t pt-2 grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                   {p.delayDays != null && <div className="flex justify-between"><span className="text-muted-foreground">Delay:</span><span className={`font-medium ${p.delayDays > 0 ? "text-red-500" : "text-green-600"}`}>{p.delayDays} days</span></div>}
                   {p.schedulePercentage != null && <div className="flex justify-between"><span className="text-muted-foreground">Schedule %:</span><span className="font-medium">{p.schedulePercentage}%</span></div>}
                   {p.performancePercentage != null && <div className="flex justify-between"><span className="text-muted-foreground">Performance %:</span><span className="font-medium">{p.performancePercentage}%</span></div>}
-                  {financialPct != null && <div className="flex justify-between"><span className="text-muted-foreground">Financial %:</span><span className="font-medium">{financialPct.toFixed(1)}%</span></div>}
                 </div>
               </CardContent>
             </Card>
+          )}
 
-            <Card data-testid="section-financial-summary">
+          {canViewFinancial && (
+            <Card data-testid="section-financial-indicators">
               <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">Financial Summary</CardTitle>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" /> Financial Indicators
+                </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Earned Value:</span><span className="font-medium">{ev != null ? formatCurrency(ev) : "—"}</span></div>
-                <div className="flex justify-between pl-3"><span className="text-muted-foreground text-xs">Billed:</span><span className="text-xs">{formatCurrency(p.billedAmount)}</span></div>
-                <div className="flex justify-between pl-3"><span className="text-muted-foreground text-xs">Unbilled:</span><span className="text-xs">{formatCurrency(p.unbilledAmount)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Actual Total Cost:</span><span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span></div>
-                <CostTileBreakdown label="Direct Cost" amount={p.actualDirectCost} details={p.directCostDetails as DirectCostDetails | null} labels={DIRECT_COST_LABELS} testIdPrefix="direct" />
-                <CostTileBreakdown label="Indirect Cost" amount={p.actualIndirectCost} details={p.indirectCostDetails as IndirectCostDetails | null} labels={INDIRECT_COST_LABELS} testIdPrefix="indirect" />
-                {costVariance != null && (
-                  <div className="flex justify-between border-t pt-1.5">
-                    <span className="text-muted-foreground">Cost Variance:</span>
-                    <span className={`font-medium ${costVariance > 0 ? "text-green-600" : costVariance < 0 ? "text-red-500" : ""}`}>{formatCurrency(costVariance)}{costVariancePct != null ? ` (${costVariancePct.toFixed(1)}%)` : ""}</span>
-                  </div>
-                )}
+              <CardContent className="px-4 pb-4 space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-medium">{formatCurrency(p.projectValue)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Updated Contract:</span><span className="font-medium">{formatCurrency(p.updatedProjectValue)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Earned Value:</span><span className="font-medium">{ev != null ? formatCurrency(ev) : "—"}</span></div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  <div className="flex justify-between pl-3"><span className="text-muted-foreground text-xs">Billed:</span><span className="text-xs">{formatCurrency(p.billedAmount)}</span></div>
+                  <div className="flex justify-between pl-3"><span className="text-muted-foreground text-xs">Unbilled:</span><span className="text-xs">{formatCurrency(p.unbilledAmount)}</span></div>
+                  {financialPct != null && <div className="flex justify-between"><span className="text-muted-foreground">Financial %:</span><span className="font-medium">{financialPct.toFixed(1)}%</span></div>}
+                </div>
+                <div className="border-t pt-2 grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  {displaySpi != null && <div className="flex justify-between"><span className="text-muted-foreground">SPI:</span><span className={`font-medium ${displaySpi >= 1 ? "text-emerald-600" : "text-red-500"}`}>{displaySpi.toFixed(2)}</span></div>}
+                  {displayCpi != null && <div className="flex justify-between"><span className="text-muted-foreground">CPI:</span><span className={`font-medium ${displayCpi >= 1 ? "text-emerald-600" : "text-red-500"}`}>{displayCpi.toFixed(2)}</span></div>}
+                  {costVariance != null && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Cost Variance:</span>
+                      <span className={`font-medium ${costVariance > 0 ? "text-green-600" : costVariance < 0 ? "text-red-500" : ""}`}>{formatCurrency(costVariance)}{costVariancePct != null ? ` (${costVariancePct.toFixed(1)}%)` : ""}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 border-t pt-2" data-testid="section-gp-comparison">
+                  {(p.projectValue != null || p.budgetedCost != null) && (
+                    <div className="bg-muted/30 rounded-lg p-3 space-y-1.5" data-testid="card-budget-gp">
+                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Budget GP</p>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Contract Value:</span><span className="font-medium">{formatCurrency(p.projectValue)}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Budgeted Cost:</span><span className="font-medium">{formatCurrency(p.budgetedCost)}</span></div>
+                      <div className="flex justify-between text-sm border-t pt-1.5">
+                        <span className="text-muted-foreground font-medium">GP:</span>
+                        <span className={`text-lg font-bold ${budgetedGP != null ? (budgetedGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{budgetedGP != null ? `${budgetedGP.toFixed(1)}%` : "—"}</span>
+                      </div>
+                    </div>
+                  )}
+                  {(p.updatedProjectValue != null || p.updatedCost != null) && (
+                    <div className="bg-muted/30 rounded-lg p-3 space-y-1.5" data-testid="card-updated-gp">
+                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Updated GP</p>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Contract Value:</span><span className="font-medium">{formatCurrency(updatedCV)}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cost:</span><span className="font-medium">{formatCurrency(updatedC)}</span></div>
+                      <div className="flex justify-between text-sm border-t pt-1.5">
+                        <span className="text-muted-foreground font-medium">GP:</span>
+                        <span className={`text-lg font-bold ${updatedGP != null ? (updatedGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{updatedGP != null ? `${updatedGP.toFixed(1)}%` : "—"}</span>
+                      </div>
+                    </div>
+                  )}
+                  {(ev != null || actualTotalCost != null) && (
+                    <div className="bg-muted/30 rounded-lg p-3 space-y-1.5" data-testid="card-current-gp">
+                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Current GP</p>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Earned Value:</span><span className="font-medium">{ev != null ? formatCurrency(ev) : "—"}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Actual Cost:</span><span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span></div>
+                      <div className="flex justify-between text-sm border-t pt-1.5">
+                        <span className="text-muted-foreground font-medium">GP:</span>
+                        <span className={`text-lg font-bold ${currentGP != null ? (currentGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{currentGP != null ? `${currentGP.toFixed(1)}%` : "—"}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="section-gp-comparison">
-            {(p.projectValue != null || p.budgetedCost != null) && (
-              <Card data-testid="card-budget-gp">
-                <CardContent className="py-3 px-4 space-y-1.5">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Budget</p>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Contract Value:</span><span className="font-medium">{formatCurrency(p.projectValue)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Budgeted Cost:</span><span className="font-medium">{formatCurrency(p.budgetedCost)}</span></div>
-                  <div className="flex justify-between text-sm border-t pt-1.5">
-                    <span className="text-muted-foreground font-medium">GP:</span>
-                    <span className={`text-lg font-bold ${budgetedGP != null ? (budgetedGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{budgetedGP != null ? `${budgetedGP.toFixed(1)}%` : "—"}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {(p.updatedProjectValue != null || p.updatedCost != null) && (
-              <Card data-testid="card-updated-gp">
-                <CardContent className="py-3 px-4 space-y-1.5">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Updated Situation</p>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Contract Value:</span><span className="font-medium">{formatCurrency(updatedCV)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cost:</span><span className="font-medium">{formatCurrency(updatedC)}</span></div>
-                  <div className="flex justify-between text-sm border-t pt-1.5">
-                    <span className="text-muted-foreground font-medium">GP:</span>
-                    <span className={`text-lg font-bold ${updatedGP != null ? (updatedGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{updatedGP != null ? `${updatedGP.toFixed(1)}%` : "—"}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {(ev != null || actualTotalCost != null) && (
-              <Card data-testid="card-current-gp">
-                <CardContent className="py-3 px-4 space-y-1.5">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Current Situation</p>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Earned Value:</span><span className="font-medium">{ev != null ? formatCurrency(ev) : "—"}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Actual Cost:</span><span className="font-medium">{actualTotalCost != null ? formatCurrency(actualTotalCost) : "—"}</span></div>
-                  <div className="flex justify-between text-sm border-t pt-1.5">
-                    <span className="text-muted-foreground font-medium">GP:</span>
-                    <span className={`text-lg font-bold ${currentGP != null ? (currentGP >= 0 ? "text-emerald-600" : "text-red-500") : ""}`}>{currentGP != null ? `${currentGP.toFixed(1)}%` : "—"}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          )}
         </div>
       )}
 

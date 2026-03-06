@@ -118,6 +118,63 @@ function csrfProtection(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+const OPERATIONAL_FIELDS = [
+  "budgetedCost", "updatedCost", "actualDirectCost", "actualIndirectCost",
+  "directCostDetails", "indirectCostDetails",
+  "delayDays", "schedulePercentage", "performancePercentage",
+] as const;
+
+const FINANCIAL_FIELDS = [
+  "projectValue", "updatedProjectValue", "billedAmount", "unbilledAmount",
+  "spiIndex", "cpiIndex",
+] as const;
+
+function stripProjectFields(project: any, canViewOperational: boolean, canViewFinancial: boolean) {
+  const p = { ...project };
+  if (canViewFinancial) {
+    const pv = p.projectValue as number | null;
+    const upv = p.updatedProjectValue as number | null;
+    const bc = p.budgetedCost as number | null;
+    const uc = p.updatedCost as number | null;
+    const adc = p.actualDirectCost as number | null;
+    const aic = p.actualIndirectCost as number | null;
+    const ba = p.billedAmount as number | null;
+    const uba = p.unbilledAmount as number | null;
+    const ev = (ba != null || uba != null) ? (ba ?? 0) + (uba ?? 0) : null;
+    const atc = (adc != null || aic != null) ? (adc ?? 0) + (aic ?? 0) : null;
+    p.computedBudgetedGP = pv != null && bc != null && pv !== 0 ? ((pv - bc) / pv) * 100 : null;
+    const updatedCV = upv ?? pv;
+    const updatedC = uc ?? bc;
+    p.computedUpdatedGP = updatedCV != null && updatedC != null && updatedCV !== 0 ? ((updatedCV - updatedC) / updatedCV) * 100 : null;
+    p.computedCurrentGP = ev != null && atc != null && ev !== 0 ? ((ev - atc) / ev) * 100 : null;
+    p.computedCostVariance = ev != null && atc != null ? ev - atc : null;
+    p.computedEarnedValue = ev;
+    p.computedActualTotalCost = atc;
+  }
+  if (!canViewOperational) {
+    for (const f of OPERATIONAL_FIELDS) p[f] = null;
+  }
+  if (!canViewFinancial) {
+    for (const f of FINANCIAL_FIELDS) p[f] = null;
+  }
+  return p;
+}
+
+async function getUserProjectPermissions(userId: string) {
+  const user = await storage.getUser(userId);
+  if (!user) return { canViewOperational: false, canViewFinancial: false, canEditOperational: false, canEditFinancial: false };
+  if (user.appRole === "admin") return { canViewOperational: true, canViewFinancial: true, canEditOperational: true, canEditFinancial: true };
+  const rows = await storage.getRolePrivileges();
+  const row = rows.find(r => r.orgRole === user.orgRole);
+  const perms = row ? (row.permissions as string[]) : [];
+  return {
+    canViewOperational: perms.includes("view_project_operational"),
+    canViewFinancial: perms.includes("view_project_financial"),
+    canEditOperational: perms.includes("edit_project_operational"),
+    canEditFinancial: perms.includes("edit_project_financial"),
+  };
+}
+
 async function appendDailyReportLog(reportId: number, action: string, userName: string, details?: string) {
   const report = await storage.getDailyReport(reportId);
   if (!report) return;
@@ -249,15 +306,17 @@ export async function registerRoutes(
     res.json({ message: "Password updated" });
   });
 
-  app.get("/api/projects", requireAuth, async (_req, res) => {
+  app.get("/api/projects", requireAuth, async (req, res) => {
     const projects = await storage.getProjects();
-    res.json(projects);
+    const pp = await getUserProjectPermissions(req.session.userId!);
+    res.json(projects.map(p => stripProjectFields(p, pp.canViewOperational, pp.canViewFinancial)));
   });
 
   app.get("/api/projects/:id", requireAuth, async (req, res) => {
     const project = await storage.getProject(Number(req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
-    res.json(project);
+    const pp = await getUserProjectPermissions(req.session.userId!);
+    res.json(stripProjectFields(project, pp.canViewOperational, pp.canViewFinancial));
   });
 
   app.post("/api/projects", requireAuth, async (req, res) => {
@@ -275,9 +334,16 @@ export async function registerRoutes(
     if (!(await requirePermission(req, res, "edit_projects"))) return;
     try {
       const partial = insertProjectSchema.partial().parse(req.body);
+      const pp = await getUserProjectPermissions(req.session.userId!);
+      if (!pp.canEditOperational) {
+        for (const f of OPERATIONAL_FIELDS) delete (partial as any)[f];
+      }
+      if (!pp.canEditFinancial) {
+        for (const f of FINANCIAL_FIELDS) delete (partial as any)[f];
+      }
       const project = await storage.updateProject(Number(req.params.id), partial);
       if (!project) return res.status(404).json({ message: "Project not found" });
-      res.json(project);
+      res.json(stripProjectFields(project, pp.canViewOperational, pp.canViewFinancial));
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
     }
@@ -671,6 +737,10 @@ export async function registerRoutes(
   app.get("/api/my-permissions", requireAuth, async (req, res) => {
     const user = await storage.getUser(req.session.userId!);
     if (!user) return res.status(401).json({ message: "Not authenticated" });
+    if (user.appRole === "admin") {
+      res.json({ permissions: [...PERMISSIONS], projectIds: user.projectIds || [] });
+      return;
+    }
     const rows = await storage.getRolePrivileges();
     const row = rows.find(r => r.orgRole === user.orgRole);
     const permissions = row ? (row.permissions as string[]) : [];

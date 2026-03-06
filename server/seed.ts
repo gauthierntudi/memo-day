@@ -17,7 +17,7 @@ const DEMO_PROJECT_CODES = ["ART-001", "MHR-002", "BBO-003"];
 export async function seedDatabase() {
   const superAdmin = await db.select().from(users).where(eq(users.email, SUPER_ADMIN_EMAIL));
   if (superAdmin.length === 0) {
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const hashedPassword = await bcrypt.hash("admin123", 12);
     await db.insert(users).values({
       name: "Super Admin",
       email: SUPER_ADMIN_EMAIL,

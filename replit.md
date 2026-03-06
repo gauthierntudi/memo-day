@@ -70,3 +70,15 @@ JSONB columns `direct_cost_details` and `indirect_cost_details` store cost break
 - Direct: Material Cost, Labor, Small Tools & Equipment, Supervision Staff, Sub-Contractors
 - Indirect: Mobilization, Tool & Plants, Formwork, Utilities & Site Facilities, Taxes & Insurance, Head Office Overhead, Contingencies
 Sub-items auto-sum to the main direct/indirect cost fields; users can also enter main totals directly
+
+## Security
+- **Authentication**: bcrypt password hashing (cost factor 12), session-based auth with express-session + connect-pg-simple
+- **Session**: Cookie named `mem.sid`, httpOnly, sameSite=lax, secure in production, 30-day expiry, session regeneration on login
+- **Security Headers**: Helmet middleware (X-Frame-Options, HSTS, X-Content-Type-Options, Referrer-Policy, etc.); CSP disabled due to inline styles/scripts
+- **Rate Limiting**: Login: 10 attempts per 15 minutes; API: 120 requests per minute
+- **CSRF Protection**: Origin header validation on mutating requests
+- **Authorization**: requireAuth middleware on all API routes; requirePermission for role-based access; project-scoped access control
+- **Input Validation**: Zod schemas on all write endpoints; Drizzle ORM prevents SQL injection
+- **Error Handling**: Generic error messages for 500-level errors; internal details logged server-side only
+- **Body Limits**: JSON/URL-encoded: 5MB; File uploads via multer: 20MB with image-only file filter
+- **Password Policy**: Minimum 6 characters; current password required when changing existing password

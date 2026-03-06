@@ -5,10 +5,18 @@ import { createServer } from "http";
 import { seedDatabase } from "./seed";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import helmet from "helmet";
 
 const app = express();
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
 declare module "http" {
   interface IncomingMessage {
@@ -26,14 +34,14 @@ declare module "express-session" {
 
 app.use(
   express.json({
-    limit: "50mb",
+    limit: "5mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+app.use(express.urlencoded({ extended: false, limit: "5mb" }));
 
 const PgSession = connectPgSimple(session);
 const isProduction = process.env.NODE_ENV === "production";
@@ -49,6 +57,7 @@ app.use(
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
     }),
+    name: "mem.sid",
     secret: process.env.SESSION_SECRET || "dev-only-insecure-key",
     resave: false,
     saveUninitialized: false,
@@ -105,7 +114,6 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
 
     console.error("Internal Server Error:", err);
 
@@ -113,7 +121,8 @@ app.use((req, res, next) => {
       return next(err);
     }
 
-    return res.status(status).json({ message });
+    const safeMessage = status < 500 ? (err.message || "Request error") : "Internal Server Error";
+    return res.status(status).json({ message: safeMessage });
   });
 
   // importantly only setup vite in development and after

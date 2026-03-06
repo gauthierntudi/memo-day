@@ -237,11 +237,14 @@ export async function registerRoutes(
     }
     const user = await storage.getUser(req.session.userId!);
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (user.password && currentPassword) {
+    if (user.password) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: "Current password is required" });
+      }
       const valid = await bcrypt.compare(currentPassword, user.password);
       if (!valid) return res.status(401).json({ message: "Current password is incorrect" });
     }
-    const hashed = await bcrypt.hash(newPassword, 10);
+    const hashed = await bcrypt.hash(newPassword, 12);
     await storage.updateUserPassword(user.id, hashed);
     res.json({ message: "Password updated" });
   });
@@ -379,7 +382,8 @@ export async function registerRoutes(
       }
       res.json(updated);
     } catch (err: unknown) {
-      res.status(500).json({ message: (err as Error).message });
+      console.error("Submit daily report error:", err);
+      res.status(500).json({ message: "Failed to submit report" });
     }
   });
 
@@ -409,7 +413,8 @@ export async function registerRoutes(
       }
       res.json(updated);
     } catch (err: unknown) {
-      res.status(500).json({ message: (err as Error).message });
+      console.error("Approve daily report error:", err);
+      res.status(500).json({ message: "Failed to approve report" });
     }
   });
 
@@ -437,7 +442,8 @@ export async function registerRoutes(
       const final = await storage.getDailyReport(report.id);
       res.json(final);
     } catch (err: unknown) {
-      res.status(500).json({ message: (err as Error).message });
+      console.error("Reject daily report error:", err);
+      res.status(500).json({ message: "Failed to reject report" });
     }
   });
 
@@ -520,7 +526,8 @@ export async function registerRoutes(
       }
       res.json(updated);
     } catch (err: unknown) {
-      res.status(500).json({ message: (err as Error).message });
+      console.error("Submit weekly plan error:", err);
+      res.status(500).json({ message: "Failed to submit plan" });
     }
   });
 
@@ -549,7 +556,8 @@ export async function registerRoutes(
       }
       res.json(updated);
     } catch (err: unknown) {
-      res.status(500).json({ message: (err as Error).message });
+      console.error("Approve weekly plan error:", err);
+      res.status(500).json({ message: "Failed to approve plan" });
     }
   });
 
@@ -575,7 +583,8 @@ export async function registerRoutes(
       });
       res.json(updated);
     } catch (err: unknown) {
-      res.status(500).json({ message: (err as Error).message });
+      console.error("Reject weekly plan error:", err);
+      res.status(500).json({ message: "Failed to reject plan" });
     }
   });
 
@@ -654,7 +663,7 @@ export async function registerRoutes(
     }
     const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
-    const hashed = await bcrypt.hash(newPwd, 10);
+    const hashed = await bcrypt.hash(newPwd, 12);
     await storage.updateUserPassword(id, hashed);
     res.json({ message: "Password set" });
   });

@@ -21,7 +21,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { resizePhotos } from "@/lib/utils";
+import { PhotoGrid } from "@/components/photo-grid";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +51,6 @@ import {
   XCircle,
   Clock,
   Camera,
-  X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import type { Project, DailyReport, User, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem, ActivityLogEntry } from "@shared/schema";
@@ -691,66 +690,22 @@ export default function DailyReportForm() {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs flex items-center gap-1"><Camera className="h-3 w-3" /> Photos</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {(inc.photos || []).map((photo, pi) => (
-                            <div key={pi} className="relative group w-20 h-20 rounded-md overflow-hidden border">
-                              <img src={photo} alt={`Safety photo ${pi + 1}`} className="w-full h-full object-cover" />
-                              <button
-                                type="button"
-                                className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={async () => {
-                                  try {
-                                    await fetch("/api/uploads", {
-                                      method: "DELETE",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ url: photo }),
-                                    });
-                                  } catch {}
-                                  const updated = [...safetyIncidents];
-                                  updated[i] = { ...updated[i], photos: (updated[i].photos || []).filter((_, idx) => idx !== pi) };
-                                  setSafetyIncidents(updated);
-                                }}
-                                data-testid={`button-remove-safety-photo-${i}-${pi}`}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                          <label
-                            className="w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/60 transition-colors"
-                            data-testid={`button-upload-safety-photo-${i}`}
-                          >
-                            <Camera className="h-5 w-5 text-muted-foreground/50" />
-                            <span className="text-[10px] text-muted-foreground/50 mt-0.5">Add</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              className="hidden"
-                              onChange={async (e) => {
-                                const files = e.target.files;
-                                if (!files || files.length === 0) return;
-                                const resized = await resizePhotos(Array.from(files));
-                                const formData = new FormData();
-                                resized.forEach(f => formData.append("photos", f));
-                                try {
-                                  const res = await fetch("/api/uploads", {
-                                    method: "POST",
-                                    body: formData,
-                                  });
-                                  if (!res.ok) throw new Error("Upload failed");
-                                  const data = await res.json();
-                                  const updated = [...safetyIncidents];
-                                  updated[i] = { ...updated[i], photos: [...(updated[i].photos || []), ...data.urls] };
-                                  setSafetyIncidents(updated);
-                                } catch {
-                                  toast({ title: "Upload failed", variant: "destructive" });
-                                }
-                                e.target.value = "";
-                              }}
-                            />
-                          </label>
-                        </div>
+                        <PhotoGrid
+                          photos={inc.photos || []}
+                          onChange={(newPhotos) => {
+                            const updated = [...safetyIncidents];
+                            updated[i] = { ...updated[i], photos: newPhotos };
+                            setSafetyIncidents(updated);
+                          }}
+                          maxPhotos={20}
+                          defaultVisible={3}
+                          canEdit={true}
+                          thumbWidth={80}
+                          thumbHeight={80}
+                          icon="camera"
+                          uploadLabel="Add"
+                          testIdPrefix={`safety-photo-${i}`}
+                        />
                       </div>
                     </div>
                   ))}
@@ -1063,62 +1018,22 @@ export default function DailyReportForm() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Camera className="h-4 w-4" /> Report Photos
-            <span className="text-xs text-muted-foreground font-normal">({reportPhotos.length}/10)</span>
+            <span className="text-xs text-muted-foreground font-normal">({reportPhotos.length}/20)</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-3">
-            {reportPhotos.map((url, i) => (
-              <div key={i} className="relative w-28 h-20 rounded-lg overflow-hidden border group" data-testid={`report-photo-${i}`}>
-                <img src={url} alt={`Report photo ${i + 1}`} className="w-full h-full object-cover" />
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await fetch("/api/uploads", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-                      } catch {}
-                      setReportPhotos(prev => prev.filter((_, idx) => idx !== i));
-                    }}
-                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    data-testid={`button-remove-report-photo-${i}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            ))}
-            {canEdit && reportPhotos.length < 10 && (
-              <label className="w-28 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors" data-testid="button-upload-report-photo">
-                <Camera className="h-5 w-5 text-muted-foreground/50" />
-                <span className="text-[10px] text-muted-foreground mt-1">Add Photo</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={async (e) => {
-                    const files = e.target.files;
-                    if (!files || files.length === 0) return;
-                    const remaining = 10 - reportPhotos.length;
-                    const toUpload = Array.from(files).slice(0, remaining);
-                    const resized = await resizePhotos(toUpload);
-                    const formData = new FormData();
-                    resized.forEach(f => formData.append("photos", f));
-                    try {
-                      const res = await fetch("/api/uploads", { method: "POST", body: formData });
-                      if (!res.ok) throw new Error("Upload failed");
-                      const data = await res.json();
-                      setReportPhotos(prev => [...prev, ...data.urls].slice(0, 10));
-                    } catch {
-                      toast({ title: "Upload failed", variant: "destructive" });
-                    }
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            )}
-          </div>
+          <PhotoGrid
+            photos={reportPhotos}
+            onChange={canEdit ? setReportPhotos : undefined}
+            maxPhotos={20}
+            defaultVisible={3}
+            canEdit={canEdit}
+            thumbWidth={112}
+            thumbHeight={80}
+            icon="camera"
+            uploadLabel="Add Photo"
+            testIdPrefix="report-photo"
+          />
           {reportPhotos.length === 0 && !canEdit && (
             <p className="text-sm text-muted-foreground">No photos attached</p>
           )}

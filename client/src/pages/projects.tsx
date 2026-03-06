@@ -44,8 +44,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { resizePhoto } from "@/lib/utils";
-import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, ImagePlus, X, ChevronDown, ChevronRight, Activity } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2, MoreVertical, CheckCircle2, UserCircle, Calendar, DollarSign, X, ChevronDown, ChevronRight, Activity } from "lucide-react";
+import { PhotoGrid } from "@/components/photo-grid";
 import type { Project, User, DirectCostDetails, IndirectCostDetails } from "@shared/schema";
 import { CLIENT_TYPES, DIRECT_COST_LABELS, INDIRECT_COST_LABELS } from "@shared/schema";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -255,7 +255,6 @@ function ProjectFormDialog({
   const isEditing = !!project;
 
   const [form, setForm] = useState<ProjectFormData>({ ...emptyForm });
-  const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -633,39 +632,17 @@ function ProjectFormDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Project Photos (up to 3)</Label>
-            <div className="flex gap-2 flex-wrap">
-              {form.photos.map((url, i) => (
-                <div key={i} className="relative group w-24 h-24 rounded-md overflow-hidden border">
-                  <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover cursor-pointer" onDoubleClick={() => setEnlargedPhoto(url)} />
-                  <button type="button" onClick={() => setForm(f => ({ ...f, photos: f.photos.filter((_, j) => j !== i) }))} className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`button-remove-photo-${i}`}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              {form.photos.length < 3 && (
-                <label className="w-24 h-24 rounded-md border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors" data-testid="button-upload-photo">
-                  <ImagePlus className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const resized = await resizePhoto(file);
-                    const fd = new FormData();
-                    fd.append("photos", resized);
-                    try {
-                      const res = await fetch("/api/uploads", { method: "POST", body: fd, credentials: "include" });
-                      if (!res.ok) throw new Error("Upload failed");
-                      const data = await res.json();
-                      setForm(f => ({ ...f, photos: [...f.photos, ...data.urls].slice(0, 3) }));
-                    } catch {
-                      toast({ title: "Upload failed", variant: "destructive" });
-                    }
-                    e.target.value = "";
-                  }} />
-                </label>
-              )}
-            </div>
+            <Label>Project Photos (up to 20)</Label>
+            <PhotoGrid
+              photos={form.photos}
+              onChange={(newPhotos) => setForm(f => ({ ...f, photos: newPhotos }))}
+              maxPhotos={20}
+              defaultVisible={3}
+              canEdit={true}
+              thumbWidth={96}
+              thumbHeight={96}
+              testIdPrefix="project-photo"
+            />
           </div>
         </form>
         </ScrollArea>
@@ -679,13 +656,6 @@ function ProjectFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    {enlargedPhoto && (
-      <Dialog open onOpenChange={() => setEnlargedPhoto(null)}>
-        <DialogContent className="max-w-3xl p-2" data-testid="dialog-enlarged-photo">
-          <img src={enlargedPhoto} alt="Enlarged photo" className="w-full h-auto rounded-md" />
-        </DialogContent>
-      </Dialog>
-    )}
     </>
   );
 }
@@ -701,7 +671,6 @@ export default function Projects() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
   const [projectFilter, setProjectFilter] = useState("all");
-  const [enlargedDetailPhoto, setEnlargedDetailPhoto] = useState<string | null>(null);
 
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -911,12 +880,16 @@ export default function Projects() {
           </div>
 
           {((p.photos as string[]) ?? []).length > 0 && (
-            <div className="flex gap-2" data-testid={`photos-project-${p.id}`}>
-              {((p.photos as string[]) ?? []).map((url, i) => (
-                <div key={i} className="rounded-lg overflow-hidden border" style={{ width: 120, height: 90 }}>
-                  <img src={url} alt={`${p.name} photo ${i + 1}`} className="w-full h-full object-cover cursor-pointer" onDoubleClick={() => setEnlargedDetailPhoto(url)} />
-                </div>
-              ))}
+            <div data-testid={`photos-project-${p.id}`}>
+              <PhotoGrid
+                photos={(p.photos as string[]) ?? []}
+                canEdit={false}
+                maxPhotos={20}
+                defaultVisible={3}
+                thumbWidth={120}
+                thumbHeight={90}
+                testIdPrefix={`detail-photo-${p.id}`}
+              />
             </div>
           )}
 
@@ -1080,13 +1053,6 @@ export default function Projects() {
       )}
 
       <ProjectFormDialog project={editingProject} open={dialogOpen} onOpenChange={setDialogOpen} />
-      {enlargedDetailPhoto && (
-        <Dialog open onOpenChange={() => setEnlargedDetailPhoto(null)}>
-          <DialogContent className="max-w-3xl p-2" data-testid="dialog-enlarged-detail-photo">
-            <img src={enlargedDetailPhoto} alt="Enlarged photo" className="w-full h-auto rounded-md" />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

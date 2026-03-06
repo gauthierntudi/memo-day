@@ -24,6 +24,7 @@ client/src/
     projects-overview.tsx  - Portfolio-level KPIs, charts, and performance analysis across all projects
   components/
     app-sidebar.tsx        - Navigation sidebar
+    photo-grid.tsx         - Reusable photo grid with upload, enlarge, show/hide toggle (max 20, 3 visible by default)
     theme-provider.tsx     - Dark/light mode
     theme-toggle.tsx       - Theme switch button
 server/

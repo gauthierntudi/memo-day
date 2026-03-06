@@ -197,7 +197,7 @@ export async function registerRoutes(
   app.use("/api", apiLimiter);
   app.use("/api", csrfProtection);
 
-  app.post("/api/uploads", requireAuth, upload.array("photos", 10), async (req, res) => {
+  app.post("/api/uploads", requireAuth, upload.array("photos", 20), async (req, res) => {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
       return res.status(400).json({ message: "No files uploaded" });

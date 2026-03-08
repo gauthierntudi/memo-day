@@ -14,6 +14,7 @@ import Dashboard from "@/pages/dashboard";
 import DailyReports from "@/pages/daily-reports";
 import DailyReportForm from "@/pages/daily-report-form";
 import Projects from "@/pages/projects";
+import ProjectsSteering from "@/pages/projects-steering";
 import WeeklyPlans from "@/pages/weekly-plans";
 import WeeklyPlanForm from "@/pages/weekly-plan-form";
 import WeeklyReport from "@/pages/weekly-report";
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/daily-reports/new">{() => <ProtectedRoute component={DailyReportForm} permission="view_daily_report" />}</Route>
       <Route path="/daily-reports/:id">{() => <ProtectedRoute component={DailyReportForm} permission="view_daily_report" />}</Route>
       <Route path="/projects" component={Projects} />
+      <Route path="/projects-steering">{() => <ProtectedRoute component={ProjectsSteering} permission="view_projects_steering" />}</Route>
       <Route path="/projects-overview">{() => <ProtectedRoute component={ProjectsOverview} permission="view_projects_overview" />}</Route>
       <Route path="/weekly-plans">{() => <ProtectedRoute component={WeeklyPlans} permission="view_weekly_plan" />}</Route>
       <Route path="/weekly-plans/new">{() => <ProtectedRoute component={WeeklyPlanForm} permission="view_weekly_plan" />}</Route>

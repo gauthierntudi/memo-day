@@ -57,6 +57,15 @@ export async function seedDatabase() {
         permissions,
       }).onConflictDoNothing();
     }
+  } else {
+    const allPerms = [...PERMISSIONS] as string[];
+    for (const row of existingPrivileges) {
+      const existing = row.permissions as string[];
+      const missing = allPerms.filter(p => !existing.includes(p));
+      if (missing.length > 0 && row.orgRole === "Director") {
+        await db.update(rolePrivileges).set({ permissions: [...existing, ...missing] }).where(eq(rolePrivileges.orgRole, row.orgRole));
+      }
+    }
   }
 
   console.log("Database seeded successfully");

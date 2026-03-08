@@ -243,15 +243,17 @@ function ProjectFormDialog({
   project,
   open,
   onOpenChange,
+  hideFinancial,
 }: {
   project?: Project;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  hideFinancial?: boolean;
 }) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canEditOperational = hasPermission("edit_project_operational");
-  const canEditFinancial = hasPermission("edit_project_financial");
+  const canEditFinancial = hideFinancial ? false : hasPermission("edit_project_financial");
   const isEditing = !!project;
 
   const [form, setForm] = useState<ProjectFormData>({ ...emptyForm });
@@ -660,14 +662,14 @@ function ProjectFormDialog({
   );
 }
 
-export default function Projects() {
+export default function Projects({ hideFinancial, pageTitle }: { hideFinancial?: boolean; pageTitle?: string }) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canEditProjects = hasPermission("edit_projects");
   const canViewOperational = hasPermission("view_project_operational");
   const canEditOperational = hasPermission("edit_project_operational");
-  const canViewFinancial = hasPermission("view_project_financial");
-  const canEditFinancial = hasPermission("edit_project_financial");
+  const canViewFinancial = hideFinancial ? false : hasPermission("view_project_financial");
+  const canEditFinancial = hideFinancial ? false : hasPermission("edit_project_financial");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
   const [projectFilter, setProjectFilter] = useState("all");
@@ -793,7 +795,7 @@ export default function Projects() {
   return (
     <div className="p-4 md:p-6 space-y-4" data-testid="projects-page">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{pageTitle || "Projects"}</h1>
         <div className="flex items-center gap-3 flex-wrap">
           <Select value={projectFilter} onValueChange={setProjectFilter}>
             <SelectTrigger className="w-[140px] h-9" data-testid="select-project-filter">
@@ -1052,7 +1054,7 @@ export default function Projects() {
         </div>
       )}
 
-      <ProjectFormDialog project={editingProject} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ProjectFormDialog project={editingProject} open={dialogOpen} onOpenChange={setDialogOpen} hideFinancial={hideFinancial} />
     </div>
   );
 }

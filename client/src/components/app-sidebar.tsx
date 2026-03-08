@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   KeyRound,
+  Activity,
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,6 +45,7 @@ const mainItems = [
 
 const managementItems = [
   { title: "Projects", url: "/projects", icon: Building2, permission: "view_projects" },
+  { title: "Projects Steering", url: "/projects-steering", icon: Activity, permission: "view_projects_steering" },
   { title: "Projects Overview", url: "/projects-overview", icon: PieChart, permission: "view_projects_overview" },
   { title: "Settings", url: "/settings", icon: Settings, permissions: ["view_users", "view_role_privileges"] },
 ];

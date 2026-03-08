@@ -16,7 +16,8 @@ client/src/
     dashboard.tsx          - Main dashboard with stats and quick links
     daily-reports.tsx      - List of daily reports with filtering
     daily-report-form.tsx  - Multi-tab daily report form (General, Weather, Activities, Labour, Subcontractors, Safety, Security, Housekeeping, Equipment, Materials, Inventory)
-    projects.tsx           - Project management page
+    projects.tsx           - Project management page (accepts hideFinancial, pageTitle props)
+    projects-steering.tsx  - Projects Steering page (same as Projects but without Financial Indicators)
     weekly-plans.tsx       - List of weekly plans
     weekly-plan-form.tsx   - Weekly plan creation with activities, labour, subcontractors, targets, milestones
     weekly-report.tsx      - Auto-generated weekly report with charts comparing plan vs actual

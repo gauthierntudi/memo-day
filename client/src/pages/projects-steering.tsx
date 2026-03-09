@@ -4,6 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   ChevronLeft,
@@ -18,6 +25,7 @@ import {
   TrendingUp,
   AlertTriangle,
   FileText,
+  List,
 } from "lucide-react";
 import { PhotoGrid } from "@/components/photo-grid";
 import type { Project, User as UserType, DirectCostDetails, IndirectCostDetails } from "@shared/schema";
@@ -29,8 +37,8 @@ function formatCurrency(value: number | null | undefined) {
 }
 
 interface SlideInfo {
-  type: "cover" | "portfolio" | "project-info" | "project-progress" | "project-operational" | "project-photos";
-  projectId?: number;
+  type: "project-info" | "project-progress" | "project-operational" | "project-photos";
+  projectId: number;
   label: string;
 }
 
@@ -70,12 +78,22 @@ export default function ProjectsSteering() {
   const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"] });
   const activeUsers = users?.filter(u => u.isActive) || [];
 
+  const [projectFilter, setProjectFilter] = useState("all");
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showProjectList, setShowProjectList] = useState(true);
+
   const sorted = useMemo(() =>
     (projects ?? [])
-      .filter(p => p.status === "active" || p.status === "on-hold" || p.status === "completed")
       .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: "base" })),
     [projects]
   );
+
+  const filtered = useMemo(() => sorted.filter(p => {
+    if (projectFilter === "all") return true;
+    if (projectFilter === "Own" || projectFilter === "Group" || projectFilter === "Non-group") return p.clientType === projectFilter;
+    if (projectFilter === "active" || projectFilter === "completed") return p.status === projectFilter;
+    return true;
+  }), [sorted, projectFilter]);
 
   const getAssignedUsersByRole = (projectId: number, role: string) => {
     return activeUsers.filter(u =>
@@ -85,26 +103,29 @@ export default function ProjectsSteering() {
     );
   };
 
+  const selectedProject = selectedProjectId ? sorted.find(p => p.id === selectedProjectId) : null;
+
   const slides = useMemo<SlideInfo[]>(() => {
+    if (!selectedProject) return [];
     const s: SlideInfo[] = [
-      { type: "cover", label: "Cover" },
-      { type: "portfolio", label: "Portfolio Overview" },
+      { type: "project-info", projectId: selectedProject.id, label: "Info" },
+      { type: "project-progress", projectId: selectedProject.id, label: "Progress" },
     ];
-    sorted.forEach(p => {
-      s.push({ type: "project-info", projectId: p.id, label: `${p.code} — Info` });
-      s.push({ type: "project-progress", projectId: p.id, label: `${p.code} — Progress` });
-      if (canViewOperational) {
-        s.push({ type: "project-operational", projectId: p.id, label: `${p.code} — Operations` });
-      }
-      const photos = (p.photos as string[]) ?? [];
-      if (photos.length > 0) {
-        s.push({ type: "project-photos", projectId: p.id, label: `${p.code} — Photos` });
-      }
-    });
+    if (canViewOperational) {
+      s.push({ type: "project-operational", projectId: selectedProject.id, label: "Operations" });
+    }
+    const photos = (selectedProject.photos as string[]) ?? [];
+    if (photos.length > 0) {
+      s.push({ type: "project-photos", projectId: selectedProject.id, label: "Photos" });
+    }
     return s;
-  }, [sorted, canViewOperational]);
+  }, [selectedProject, canViewOperational]);
 
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [selectedProjectId]);
 
   useEffect(() => {
     if (currentSlide >= slides.length && slides.length > 0) {
@@ -116,13 +137,19 @@ export default function ProjectsSteering() {
   const goPrev = useCallback(() => setCurrentSlide(i => Math.max(i - 1, 0)), []);
 
   useEffect(() => {
+    if (!selectedProject) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); goNext(); }
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrev(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, selectedProject]);
+
+  const handleSelectProject = (id: number) => {
+    setSelectedProjectId(id);
+    setShowProjectList(false);
+  };
 
   if (isLoading) {
     return (
@@ -134,7 +161,6 @@ export default function ProjectsSteering() {
   }
 
   const slide = slides[currentSlide];
-  const project = slide?.projectId ? sorted.find(p => p.id === slide.projectId) : null;
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]" data-testid="projects-steering-deck">
@@ -143,166 +169,113 @@ export default function ProjectsSteering() {
           <Building2 className="h-5 w-5 text-primary" />
           <h1 className="text-lg font-bold" data-testid="text-steering-title">Projects Steering</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground" data-testid="text-slide-counter">
-            {currentSlide + 1} / {slides.length}
-          </span>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goPrev} disabled={currentSlide === 0} data-testid="button-prev-slide">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goNext} disabled={currentSlide === slides.length - 1} data-testid="button-next-slide">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-[140px] h-9" data-testid="select-project-filter">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="Own">Own</SelectItem>
+              <SelectItem value="Group">Group</SelectItem>
+              <SelectItem value="Non-group">Non-group</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          {!showProjectList && (
+            <Button variant="outline" size="sm" onClick={() => setShowProjectList(true)} data-testid="button-show-project-list">
+              <List className="h-4 w-4 mr-1.5" /> Projects
+            </Button>
+          )}
+          {selectedProject && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground" data-testid="text-slide-counter">
+                {currentSlide + 1} / {slides.length}
+              </span>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={goPrev} disabled={currentSlide === 0} data-testid="button-prev-slide">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={goNext} disabled={currentSlide === slides.length - 1} data-testid="button-next-slide">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+
+      {showProjectList && (
+        <div className="shrink-0 px-4 py-3 border-b" data-testid="project-list-section">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5" data-testid="project-list-grid">
+            {filtered.length === 0 ? (
+              <div className="col-span-3 flex flex-col items-center justify-center py-8">
+                <Building2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-muted-foreground text-sm">{projects && projects.length > 0 ? "No projects match the selected filter" : "No projects added yet"}</p>
+              </div>
+            ) : (
+              filtered.map(project => (
+                <button
+                  key={project.id}
+                  onClick={() => handleSelectProject(project.id)}
+                  className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors truncate ${
+                    selectedProjectId === project.id
+                      ? "bg-primary text-primary-foreground border-primary font-semibold"
+                      : "bg-card hover:bg-muted/60 border-border"
+                  }`}
+                  data-testid={`button-select-project-${project.id}`}
+                >
+                  <span className="truncate block">{project.name}</span>
+                  <span className={`text-[10px] ${selectedProjectId === project.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{project.code}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto flex items-center justify-center p-4 md:p-8 bg-gradient-to-br from-background to-muted/20">
         <div className="w-full max-w-5xl">
-          {slide?.type === "cover" && <CoverSlide projectCount={sorted.length} />}
-          {slide?.type === "portfolio" && <PortfolioSlide projects={sorted} />}
-          {slide?.type === "project-info" && project && (
-            <ProjectInfoSlide project={project} assignedPMs={getAssignedUsersByRole(project.id, "Project Manager")} assignedDMs={getAssignedUsersByRole(project.id, "Development Manager")} />
+          {!selectedProject ? (
+            <div className="flex flex-col items-center justify-center text-center space-y-4 py-16">
+              <div className="p-5 rounded-full bg-primary/10">
+                <Building2 className="h-12 w-12 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold">Select a Project</h2>
+              <p className="text-muted-foreground">Choose a project from the list above to view its steering slides</p>
+            </div>
+          ) : (
+            <>
+              {slide?.type === "project-info" && (
+                <ProjectInfoSlide project={selectedProject} assignedPMs={getAssignedUsersByRole(selectedProject.id, "Project Manager")} assignedDMs={getAssignedUsersByRole(selectedProject.id, "Development Manager")} />
+              )}
+              {slide?.type === "project-progress" && <ProjectProgressSlide project={selectedProject} />}
+              {slide?.type === "project-operational" && <ProjectOperationalSlide project={selectedProject} />}
+              {slide?.type === "project-photos" && <ProjectPhotosSlide project={selectedProject} />}
+            </>
           )}
-          {slide?.type === "project-progress" && project && <ProjectProgressSlide project={project} />}
-          {slide?.type === "project-operational" && project && <ProjectOperationalSlide project={project} />}
-          {slide?.type === "project-photos" && project && <ProjectPhotosSlide project={project} />}
         </div>
       </div>
 
-      <div className="shrink-0 border-t bg-muted/20 px-4 py-2 overflow-x-auto">
-        <div className="flex gap-1">
-          {slides.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrentSlide(i)}
-              className={`px-2 py-1 text-[10px] rounded whitespace-nowrap transition-colors ${
-                i === currentSlide
-                  ? "bg-primary text-primary-foreground font-semibold"
-                  : "bg-muted hover:bg-muted/80 text-muted-foreground"
-              }`}
-              data-testid={`button-slide-${i}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CoverSlide({ projectCount }: { projectCount: number }) {
-  return (
-    <div className="flex flex-col items-center justify-center text-center space-y-6 py-16" data-testid="slide-cover">
-      <div className="p-5 rounded-full bg-primary/10">
-        <Building2 className="h-16 w-16 text-primary" />
-      </div>
-      <div className="space-y-2">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Projects Steering</h1>
-        <p className="text-xl text-muted-foreground">Portfolio Review & Status Update</p>
-      </div>
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Calendar className="h-4 w-4" />
-        <span className="text-sm">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
-      </div>
-      <Badge variant="secondary" className="text-sm px-4 py-1">{projectCount} Active Projects</Badge>
-      <p className="text-xs text-muted-foreground mt-8">Use arrow keys or navigation buttons to browse slides</p>
-    </div>
-  );
-}
-
-function PortfolioSlide({ projects }: { projects: Project[] }) {
-  const activeCount = projects.filter(p => p.status === "active").length;
-  const onHoldCount = projects.filter(p => p.status === "on-hold").length;
-  const completedCount = projects.filter(p => p.status === "completed").length;
-  const avgProgress = projects.length > 0
-    ? Math.round(projects.reduce((sum, p) => sum + (p.overallProgress ?? 0), 0) / projects.length)
-    : 0;
-  const delayed = projects.filter(p => (p.delayDays ?? 0) > 0);
-
-  return (
-    <div className="space-y-6" data-testid="slide-portfolio">
-      <div className="text-center space-y-1">
-        <h2 className="text-3xl font-bold">Portfolio Overview</h2>
-        <p className="text-muted-foreground">All projects at a glance</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="py-4 px-4 text-center">
-            <p className="text-3xl font-bold text-primary">{projects.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">Total Projects</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 px-4 text-center">
-            <p className="text-3xl font-bold text-emerald-600">{activeCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">Active</p>
-            {onHoldCount > 0 && <p className="text-[10px] text-amber-600 mt-0.5">{onHoldCount} On Hold</p>}
-            {completedCount > 0 && <p className="text-[10px] text-blue-600 mt-0.5">{completedCount} Completed</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 px-4 text-center">
-            <p className="text-3xl font-bold">{avgProgress}%</p>
-            <p className="text-xs text-muted-foreground mt-1">Avg. Progress</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 px-4 text-center">
-            <p className={`text-3xl font-bold ${delayed.length > 0 ? "text-red-500" : "text-emerald-600"}`}>{delayed.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">Delayed Projects</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardContent className="py-4 px-4">
-          <div className="space-y-3">
-            {projects.map(p => {
-              const progress = p.overallProgress ?? 0;
-              const schedule = p.schedulePercentage ?? 0;
-              return (
-                <div key={p.id} className="flex items-center gap-3" data-testid={`portfolio-row-${p.id}`}>
-                  <div className="w-20 shrink-0">
-                    <span className="text-xs font-mono font-semibold">{p.code}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium truncate">{p.name}</span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant={p.status === "active" ? "default" : p.status === "completed" ? "outline" : "secondary"} className="text-[10px] capitalize">{p.status}</Badge>
-                        {(p.delayDays ?? 0) > 0 && (
-                          <span className="text-[10px] text-red-500 font-medium flex items-center gap-0.5">
-                            <AlertTriangle className="h-3 w-3" /> {p.delayDays}d
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="relative h-3 w-full rounded-full bg-muted/50">
-                      <div
-                        className="absolute inset-y-0 left-0 rounded-full transition-all"
-                        style={{ width: `${Math.min(progress, 100)}%`, background: "linear-gradient(90deg, #2563eb, #06b6d4)" }}
-                      />
-                      {schedule > 0 && (
-                        <div
-                          className="absolute top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-sm"
-                          style={{ left: `${Math.min(schedule, 100)}%`, background: "#d97706" }}
-                          title={`Schedule: ${schedule}%`}
-                        />
-                      )}
-                    </div>
-                    <div className="flex justify-between mt-0.5">
-                      <span className="text-[10px] text-muted-foreground">Progress: {progress}%</span>
-                      <span className="text-[10px] text-amber-600">Schedule: {schedule}%</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+      {selectedProject && slides.length > 0 && (
+        <div className="shrink-0 border-t bg-muted/20 px-4 py-2 overflow-x-auto">
+          <div className="flex gap-1">
+            {slides.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentSlide(i)}
+                className={`px-3 py-1.5 text-xs rounded whitespace-nowrap transition-colors ${
+                  i === currentSlide
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                }`}
+                data-testid={`button-slide-${i}`}
+              >
+                {s.label}
+              </button>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

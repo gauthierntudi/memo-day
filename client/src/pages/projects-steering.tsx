@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,7 +28,7 @@ import {
   List,
 } from "lucide-react";
 import { PhotoGrid } from "@/components/photo-grid";
-import type { Project, User as UserType, DirectCostDetails, IndirectCostDetails } from "@shared/schema";
+import type { Project, User as UserType, DailyReport, WeeklyPlan, DirectCostDetails, IndirectCostDetails } from "@shared/schema";
 import { DIRECT_COST_LABELS, INDIRECT_COST_LABELS } from "@shared/schema";
 
 function formatCurrency(value: number | null | undefined) {
@@ -37,7 +37,7 @@ function formatCurrency(value: number | null | undefined) {
 }
 
 interface SlideInfo {
-  type: "project-info" | "project-progress" | "project-operational" | "project-photos";
+  type: "project-info" | "project-progress" | "project-operational" | "project-photos" | "weekly-report" | "weekly-plan";
   projectId: number;
   label: string;
 }
@@ -76,6 +76,8 @@ export default function ProjectsSteering() {
 
   const { data: projects, isLoading } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
   const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"] });
+  const { data: allReports } = useQuery<DailyReport[]>({ queryKey: ["/api/daily-reports"] });
+  const { data: allPlans } = useQuery<WeeklyPlan[]>({ queryKey: ["/api/weekly-plans"] });
   const activeUsers = users?.filter(u => u.isActive) || [];
 
   const [projectFilter, setProjectFilter] = useState("all");
@@ -105,6 +107,48 @@ export default function ProjectsSteering() {
 
   const selectedProject = selectedProjectId ? sorted.find(p => p.id === selectedProjectId) : null;
 
+  const getWeekBounds = (refDate: Date, offset: number) => {
+    const d = new Date(refDate);
+    d.setDate(d.getDate() + offset * 7);
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((day + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = (dt: Date) => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd = String(dt.getDate()).padStart(2, "0");
+      return `${y}-${m}-${dd}`;
+    };
+    return { start: fmt(monday), end: fmt(sunday) };
+  };
+
+  const today = new Date();
+  const prevWeek = getWeekBounds(today, -1);
+  const thisWeek = getWeekBounds(today, 0);
+
+  const prevWeekReports = useMemo(() => {
+    if (!selectedProjectId || !allReports) return [];
+    return allReports.filter(r =>
+      r.projectId === selectedProjectId &&
+      r.status === "approved" &&
+      r.reportDate >= prevWeek.start &&
+      r.reportDate <= prevWeek.end
+    );
+  }, [selectedProjectId, allReports, prevWeek.start, prevWeek.end]);
+
+  const thisWeekPlan = useMemo(() => {
+    if (!selectedProjectId || !allPlans) return null;
+    const candidates = allPlans.filter(p =>
+      p.projectId === selectedProjectId &&
+      p.status === "approved" &&
+      p.weekStartDate <= thisWeek.end &&
+      p.weekEndDate >= thisWeek.start
+    );
+    return candidates.sort((a, b) => b.weekNumber - a.weekNumber)[0] || null;
+  }, [selectedProjectId, allPlans, thisWeek.start, thisWeek.end]);
+
   const slides = useMemo<SlideInfo[]>(() => {
     if (!selectedProject) return [];
     const s: SlideInfo[] = [
@@ -114,6 +158,8 @@ export default function ProjectsSteering() {
     if (canViewOperational) {
       s.push({ type: "project-operational", projectId: selectedProject.id, label: "Operations" });
     }
+    s.push({ type: "weekly-report", projectId: selectedProject.id, label: "Last Week" });
+    s.push({ type: "weekly-plan", projectId: selectedProject.id, label: "This Week" });
     const photos = (selectedProject.photos as string[]) ?? [];
     if (photos.length > 0) {
       s.push({ type: "project-photos", projectId: selectedProject.id, label: "Photos" });
@@ -250,6 +296,8 @@ export default function ProjectsSteering() {
               )}
               {slide?.type === "project-progress" && <ProjectProgressSlide project={selectedProject} />}
               {slide?.type === "project-operational" && <ProjectOperationalSlide project={selectedProject} />}
+              {slide?.type === "weekly-report" && <WeeklyReportSlide reports={prevWeekReports} weekStart={prevWeek.start} weekEnd={prevWeek.end} />}
+              {slide?.type === "weekly-plan" && <WeeklyPlanSlide plan={thisWeekPlan} weekStart={thisWeek.start} weekEnd={thisWeek.end} />}
               {slide?.type === "project-photos" && <ProjectPhotosSlide project={selectedProject} />}
             </>
           )}
@@ -486,6 +534,237 @@ function ProjectOperationalSlide({ project: p }: { project: Project }) {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function WeeklyReportSlide({ reports, weekStart, weekEnd }: { reports: DailyReport[]; weekStart: string; weekEnd: string }) {
+  const totalWorkers = reports.reduce((sum, r) => {
+    const labour = r.labourForce as any[];
+    return sum + (labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0);
+  }, 0);
+
+  const totalSafety = reports.reduce((sum, r) => sum + ((r.safetyIncidents as any[])?.length || 0), 0);
+  const totalSecurity = reports.reduce((sum, r) => sum + ((r.securityIncidents as any[])?.length || 0), 0);
+
+  const avgProgress = reports.length > 0
+    ? Math.round(reports.reduce((sum, r) => sum + (r.overallProgress || 0), 0) / reports.length)
+    : 0;
+
+  const labourByTrade: Record<string, number> = {};
+  reports.forEach(r => {
+    const labour = r.labourForce as any[];
+    labour?.forEach((l: any) => {
+      if (l.trade) labourByTrade[l.trade] = (labourByTrade[l.trade] || 0) + (l.count || 0);
+    });
+  });
+  const topTrades = Object.entries(labourByTrade).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  const allActivities: any[] = [];
+  reports.forEach(r => {
+    const acts = r.workActivities as any[];
+    acts?.forEach(a => { if (a.trade || a.description) allActivities.push(a); });
+  });
+  const activityByStatus: Record<string, number> = {};
+  allActivities.forEach(a => {
+    const s = a.status || "Unknown";
+    activityByStatus[s] = (activityByStatus[s] || 0) + 1;
+  });
+
+  const workingDays = reports.filter(r => r.isWorkingDay).length;
+
+  return (
+    <div className="space-y-4" data-testid="slide-weekly-report">
+      <div>
+        <h2 className="text-2xl font-bold">Last Week Report</h2>
+        <p className="text-muted-foreground text-sm">{weekStart} — {weekEnd}</p>
+      </div>
+
+      {reports.length === 0 ? (
+        <Card><CardContent className="py-8 text-center text-muted-foreground">No approved daily reports found for last week.</CardContent></Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Reports</p>
+              <p className="text-2xl font-bold">{reports.length}</p>
+              <p className="text-xs text-muted-foreground">{workingDays} working days</p>
+            </CardContent></Card>
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Workers</p>
+              <p className="text-2xl font-bold">{totalWorkers.toLocaleString()}</p>
+            </CardContent></Card>
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Avg Progress</p>
+              <p className="text-2xl font-bold">{avgProgress}%</p>
+            </CardContent></Card>
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Incidents</p>
+              <p className="text-2xl font-bold">{totalSafety + totalSecurity}</p>
+              <p className="text-xs text-muted-foreground">{totalSafety} safety · {totalSecurity} security</p>
+            </CardContent></Card>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2 pt-3 px-4"><CardTitle className="text-sm font-semibold">Labour by Trade</CardTitle></CardHeader>
+              <CardContent className="px-4 pb-3">
+                {topTrades.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">No labour data</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {topTrades.map(([trade, count]) => (
+                      <div key={trade} className="flex items-center justify-between text-sm">
+                        <span className="truncate mr-2">{trade}</span>
+                        <span className="font-semibold tabular-nums">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2 pt-3 px-4"><CardTitle className="text-sm font-semibold">Activities Summary</CardTitle></CardHeader>
+              <CardContent className="px-4 pb-3">
+                {allActivities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">No activities recorded</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Total Activities</span>
+                      <span className="font-semibold">{allActivities.length}</span>
+                    </div>
+                    {Object.entries(activityByStatus).sort((a, b) => b[1] - a[1]).map(([status, count]) => (
+                      <div key={status} className="flex items-center justify-between text-sm">
+                        <span className="truncate mr-2 text-muted-foreground capitalize">{status}</span>
+                        <span className="font-semibold tabular-nums">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function WeeklyPlanSlide({ plan, weekStart, weekEnd }: { plan: WeeklyPlan | null; weekStart: string; weekEnd: string }) {
+  const activities = (plan?.plannedActivities as any[]) || [];
+  const labour = (plan?.plannedLabour as any[]) || [];
+  const milestones = (plan?.milestones as any[]) || [];
+  const subcontractors = (plan?.plannedSubcontractors as any[]) || [];
+  const totalPlannedWorkers = labour.reduce((s: number, l: any) => s + (l.plannedCount || 0), 0);
+
+  return (
+    <div className="space-y-4" data-testid="slide-weekly-plan">
+      <div>
+        <h2 className="text-2xl font-bold">This Week Plan</h2>
+        <p className="text-muted-foreground text-sm">
+          {weekStart} — {weekEnd}
+          {plan ? ` · Week ${plan.weekNumber}` : ""}
+        </p>
+      </div>
+
+      {!plan ? (
+        <Card><CardContent className="py-8 text-center text-muted-foreground">No approved weekly plan found for this week.</CardContent></Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Activities</p>
+              <p className="text-2xl font-bold">{activities.length}</p>
+            </CardContent></Card>
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Planned Workers</p>
+              <p className="text-2xl font-bold">{totalPlannedWorkers}</p>
+            </CardContent></Card>
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Subcontractors</p>
+              <p className="text-2xl font-bold">{subcontractors.length}</p>
+            </CardContent></Card>
+            <Card><CardContent className="py-3 px-4 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Milestones</p>
+              <p className="text-2xl font-bold">{milestones.length}</p>
+            </CardContent></Card>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2 pt-3 px-4"><CardTitle className="text-sm font-semibold">Planned Activities</CardTitle></CardHeader>
+              <CardContent className="px-4 pb-3">
+                {activities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">No activities planned</p>
+                ) : (
+                  <div className="space-y-2">
+                    {activities.map((a: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <Badge variant={a.priority === "High" ? "destructive" : a.priority === "Low" ? "secondary" : "outline"} className="text-[10px] shrink-0 mt-0.5">{a.priority}</Badge>
+                        <div className="min-w-0">
+                          <span className="font-medium">{a.trade}</span>
+                          {a.description && <span className="text-muted-foreground"> — {a.description}</span>}
+                          {a.targetPercent > 0 && <span className="text-muted-foreground ml-1">({a.targetPercent}%)</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-2 pt-3 px-4"><CardTitle className="text-sm font-semibold">Labour Plan</CardTitle></CardHeader>
+                <CardContent className="px-4 pb-3">
+                  {labour.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">No labour planned</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {labour.map((l: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between text-sm">
+                          <span className="truncate mr-2">{l.trade}</span>
+                          <span className="font-semibold tabular-nums">{l.plannedCount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {milestones.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2 pt-3 px-4"><CardTitle className="text-sm font-semibold">Milestones</CardTitle></CardHeader>
+                  <CardContent className="px-4 pb-3">
+                    <div className="space-y-1.5">
+                      {milestones.map((m: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between text-sm gap-2">
+                          <span className="truncate">{m.description}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-muted-foreground">{m.targetDate}</span>
+                            <Badge variant={m.status === "Completed" ? "default" : m.status === "In Progress" ? "outline" : "secondary"} className="text-[10px]">{m.status}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+
+          {plan.notes && (
+            <Card>
+              <CardHeader className="pb-2 pt-3 px-4"><CardTitle className="text-sm font-semibold">Notes</CardTitle></CardHeader>
+              <CardContent className="px-4 pb-3">
+                <p className="text-sm whitespace-pre-wrap">{plan.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }

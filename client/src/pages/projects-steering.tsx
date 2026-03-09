@@ -447,7 +447,7 @@ function ProjectProgressSlide({ project: p }: { project: Project }) {
               <div className="flex justify-between text-sm mb-2">
                 <span className="font-medium">Progress vs Schedule</span>
                 <span className={`font-semibold ${progress >= schedule ? "text-emerald-600" : "text-red-500"}`}>
-                  {progress >= schedule ? "On Track" : `Behind by ${schedule - progress}%`}
+                  {progress >= schedule ? "On Track" : `Behind by ${(schedule - progress).toFixed(2)}%`}
                 </span>
               </div>
               <div className="relative h-8 w-full rounded-full bg-muted/50 overflow-hidden">

@@ -567,6 +567,18 @@ export async function registerRoutes(
       if (!canAccessProject(allowed, validated.projectId)) {
         return res.status(403).json({ message: "You do not have access to this project" });
       }
+      if (validated.weekStartDate && validated.weekEndDate) {
+        const existingPlans = await storage.getWeeklyPlans();
+        const overlap = existingPlans.find(p =>
+          p.projectId === validated.projectId &&
+          p.weekStartDate && p.weekEndDate &&
+          p.weekStartDate <= validated.weekEndDate &&
+          p.weekEndDate >= validated.weekStartDate
+        );
+        if (overlap) {
+          return res.status(400).json({ message: `Date range overlaps with existing weekly plan (Week ${overlap.weekNumber}: ${overlap.weekStartDate} — ${overlap.weekEndDate})` });
+        }
+      }
       const plan = await storage.createWeeklyPlan(validated);
       res.status(201).json(plan);
     } catch (err: unknown) {
@@ -584,6 +596,27 @@ export async function registerRoutes(
         return res.status(403).json({ message: "You do not have access to this project" });
       }
       const partial = insertWeeklyPlanSchema.partial().parse(req.body);
+      const effectiveProjectId = partial.projectId ?? existing.projectId;
+      if (partial.projectId && partial.projectId !== existing.projectId) {
+        if (!canAccessProject(allowed, partial.projectId)) {
+          return res.status(403).json({ message: "You do not have access to the target project" });
+        }
+      }
+      const effectiveStart = partial.weekStartDate ?? existing.weekStartDate;
+      const effectiveEnd = partial.weekEndDate ?? existing.weekEndDate;
+      if (effectiveStart && effectiveEnd) {
+        const allPlans = await storage.getWeeklyPlans();
+        const overlap = allPlans.find(p =>
+          p.id !== existing.id &&
+          p.projectId === effectiveProjectId &&
+          p.weekStartDate && p.weekEndDate &&
+          p.weekStartDate <= effectiveEnd &&
+          p.weekEndDate >= effectiveStart
+        );
+        if (overlap) {
+          return res.status(400).json({ message: `Date range overlaps with existing weekly plan (Week ${overlap.weekNumber}: ${overlap.weekStartDate} — ${overlap.weekEndDate})` });
+        }
+      }
       const plan = await storage.updateWeeklyPlan(Number(req.params.id), partial);
       if (!plan) return res.status(404).json({ message: "Plan not found" });
       res.json(plan);

@@ -25,7 +25,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
-import { ArrowLeft, Save, Send, Plus, Trash2, CalendarRange, Users, Target, Milestone as MilestoneIcon, CheckCircle2, XCircle, Clock, Copy } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Save, Send, Plus, Trash2, CalendarRange, Users, Target, Milestone as MilestoneIcon, CheckCircle2, XCircle, Clock, Copy, AlertTriangle } from "lucide-react";
 import type { Project, WeeklyPlan, PlannedActivity, PlannedLabour, PlannedSubcontractor, ProductivityTarget, Milestone } from "@shared/schema";
 import { TRADES, PRIORITY_LEVELS } from "@shared/schema";
 
@@ -53,7 +54,6 @@ export default function WeeklyPlanForm() {
   });
   const { data: allPlans } = useQuery<WeeklyPlan[]>({
     queryKey: ["/api/weekly-plans"],
-    enabled: !isEdit,
   });
 
   const [projectId, setProjectId] = useState<number>(0);
@@ -88,6 +88,16 @@ export default function WeeklyPlanForm() {
       .filter(p => p.projectId === projectId)
       .sort((a, b) => b.id - a.id);
     return projectPlans.length > 0 ? projectPlans[0] : null;
+  })();
+
+  const overlappingPlan = (() => {
+    if (!projectId || !weekStartDate || !weekEndDate || !allPlans) return null;
+    return allPlans.find(p => {
+      if (p.projectId !== projectId) return false;
+      if (isEdit && p.id === Number(params.id)) return false;
+      if (!p.weekStartDate || !p.weekEndDate) return false;
+      return p.weekStartDate <= weekEndDate && p.weekEndDate >= weekStartDate;
+    }) || null;
   })();
 
   const loadFromPreviousPlan = (showToast = true) => {
@@ -227,16 +237,16 @@ export default function WeeklyPlanForm() {
         <div className="flex gap-2 shrink-0 flex-wrap">
           {canEdit && (
             <>
-              <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-save-plan-draft">
+              <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending || !!overlappingPlan} data-testid="button-save-plan-draft">
                 <Save className="mr-2 h-4 w-4" /> Save Draft
               </Button>
               {isEdit && (isDraft || isRejected) && canSubmitPlan && (
-                <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending} data-testid="button-submit-plan">
+                <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || !!overlappingPlan} data-testid="button-submit-plan">
                   <Send className="mr-2 h-4 w-4" /> Submit for Approval
                 </Button>
               )}
               {!isEdit && (
-                <Button onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-create-plan">
+                <Button onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending || !!overlappingPlan} data-testid="button-create-plan">
                   <Save className="mr-2 h-4 w-4" /> Create Plan
                 </Button>
               )}
@@ -316,6 +326,15 @@ export default function WeeklyPlanForm() {
           </div>
         </CardContent>
       </Card>
+
+      {overlappingPlan && (
+        <Alert variant="destructive" data-testid="alert-overlap">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            This plan's date range overlaps with an existing weekly plan (Week {overlappingPlan.weekNumber}: {overlappingPlan.weekStartDate} — {overlappingPlan.weekEndDate}). Please adjust the dates to avoid conflicts.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
@@ -524,11 +543,11 @@ export default function WeeklyPlanForm() {
         <Button variant="outline" onClick={() => navigate("/weekly-plans")}>Cancel</Button>
         {canEdit && (
           <>
-            <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}>
+            <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending || !!overlappingPlan}>
               <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
             {isEdit && (isDraft || isRejected) && canSubmitPlan && (
-              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || !!overlappingPlan}>
                 <Send className="mr-2 h-4 w-4" /> Submit for Approval
               </Button>
             )}

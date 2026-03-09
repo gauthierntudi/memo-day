@@ -388,8 +388,8 @@ function ProjectFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="code">Project Code</Label>
-              <Input id="code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="e.g. PRJ-001" data-testid="input-project-code" disabled={isEditing} />
-              {isEditing && <p className="text-xs text-muted-foreground">Cannot be changed.</p>}
+              <Input id="code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="e.g. PRJ-001" data-testid="input-project-code" disabled={isEditing && !canEditOperational} />
+              {isEditing && !canEditOperational && <p className="text-xs text-muted-foreground">Cannot be changed.</p>}
             </div>
             <div className="space-y-2">
               <Label>Client Type</Label>

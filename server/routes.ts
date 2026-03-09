@@ -349,6 +349,7 @@ export async function registerRoutes(
       const pp = await getUserProjectPermissions(req.session.userId!);
       if (!pp.canEditOperational) {
         for (const f of OPERATIONAL_FIELDS) delete (partial as any)[f];
+        delete (partial as any).code;
       }
       if (!pp.canEditFinancial) {
         for (const f of FINANCIAL_FIELDS) delete (partial as any)[f];

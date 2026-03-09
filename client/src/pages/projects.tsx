@@ -764,7 +764,7 @@ export default function Projects({ hideFinancial, pageTitle }: { hideFinancial?:
     if (projectFilter === "Own" || projectFilter === "Group" || projectFilter === "Non-group") return p.clientType === projectFilter;
     if (projectFilter === "active" || projectFilter === "completed") return p.status === projectFilter;
     return true;
-  }), [projects, projectFilter]);
+  }).sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: "base" })), [projects, projectFilter]);
 
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const selectedProject = filtered.find(p => p.id === selectedProjectId) ?? null;

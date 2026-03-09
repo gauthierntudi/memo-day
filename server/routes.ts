@@ -331,6 +331,10 @@ export async function registerRoutes(
     if (!(await requirePermission(req, res, "edit_projects"))) return;
     try {
       const validated = insertProjectSchema.parse(req.body);
+      const existing = await storage.getProjects();
+      if (existing.some(p => p.code.toLowerCase() === validated.code.toLowerCase())) {
+        return res.status(400).json({ message: "A project with this code already exists" });
+      }
       const project = await storage.createProject(validated);
       res.status(201).json(project);
     } catch (err: unknown) {
@@ -353,6 +357,12 @@ export async function registerRoutes(
       }
       if (!pp.canEditFinancial) {
         for (const f of FINANCIAL_FIELDS) delete (partial as any)[f];
+      }
+      if (partial.code) {
+        const existing = await storage.getProjects();
+        if (existing.some(p => p.id !== Number(req.params.id) && p.code.toLowerCase() === partial.code!.toLowerCase())) {
+          return res.status(400).json({ message: "A project with this code already exists" });
+        }
       }
       const project = await storage.updateProject(Number(req.params.id), partial);
       if (!project) return res.status(404).json({ message: "Project not found" });

@@ -256,6 +256,7 @@ function ProjectFormDialog({
   const canEditFinancial = hideFinancial ? false : hasPermission("edit_project_financial");
   const isEditing = !!project;
 
+  const { data: allProjects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
   const [form, setForm] = useState<ProjectFormData>({ ...emptyForm });
 
   useEffect(() => {
@@ -340,8 +341,13 @@ function ProjectFormDialog({
     return diffDays > 0 ? diffDays : 0;
   };
 
+  const isDuplicateCode = form.code.trim() !== "" && allProjects?.some(
+    p => p.code.toLowerCase() === form.code.trim().toLowerCase() && (!isEditing || p.id !== project?.id)
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDuplicateCode) return;
     const finalSchedule = form.schedulePercentage;
     const autoDelay = computeDelayFromBaseline();
     const finalDelay = autoDelay ?? form.delayDays;
@@ -388,8 +394,9 @@ function ProjectFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="code">Project Code</Label>
-              <Input id="code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="e.g. PRJ-001" data-testid="input-project-code" disabled={isEditing && !canEditOperational} />
+              <Input id="code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="e.g. PRJ-001" data-testid="input-project-code" disabled={isEditing && !canEditOperational} className={isDuplicateCode ? "border-destructive" : ""} />
               {isEditing && !canEditOperational && <p className="text-xs text-muted-foreground">Cannot be changed.</p>}
+              {isDuplicateCode && <p className="text-xs text-destructive" data-testid="text-duplicate-code-error">A project with this code already exists.</p>}
             </div>
             <div className="space-y-2">
               <Label>Client Type</Label>

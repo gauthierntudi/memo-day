@@ -345,9 +345,21 @@ function ProjectFormDialog({
     p => p.code.toLowerCase() === form.code.trim().toLowerCase() && (!isEditing || p.id !== project?.id)
   );
 
+  const isDateBeforeStart = (date: string | null) => {
+    if (!date || !form.startDate) return false;
+    return new Date(date) < new Date(form.startDate);
+  };
+
+  const dateErrors = {
+    planned: isDateBeforeStart(form.plannedDeliveryDate),
+    revised: isDateBeforeStart(form.revisedBaselineDate),
+    expected: isDateBeforeStart(form.updatedDeliveryDate),
+  };
+  const hasDateError = dateErrors.planned || dateErrors.revised || dateErrors.expected;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isDuplicateCode) return;
+    if (isDuplicateCode || hasDateError) return;
     const finalSchedule = form.schedulePercentage;
     const autoDelay = computeDelayFromBaseline();
     const finalDelay = autoDelay ?? form.delayDays;
@@ -432,17 +444,20 @@ function ProjectFormDialog({
             </div>
             <div className="space-y-2">
               <Label>Planned Completion Date</Label>
-              <Input type="date" value={form.plannedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, plannedDeliveryDate: e.target.value || null }))} data-testid="input-planned-delivery" />
+              <Input type="date" value={form.plannedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, plannedDeliveryDate: e.target.value || null }))} data-testid="input-planned-delivery" className={dateErrors.planned ? "border-destructive" : ""} />
+              {dateErrors.planned && <p className="text-xs text-destructive" data-testid="text-date-error-planned">Completion date cannot be earlier than the start date.</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Revised Baseline for Completion</Label>
-              <Input type="date" value={form.revisedBaselineDate || ""} onChange={e => setForm(f => ({ ...f, revisedBaselineDate: e.target.value || null }))} data-testid="input-revised-baseline" />
+              <Input type="date" value={form.revisedBaselineDate || ""} onChange={e => setForm(f => ({ ...f, revisedBaselineDate: e.target.value || null }))} data-testid="input-revised-baseline" className={dateErrors.revised ? "border-destructive" : ""} />
+              {dateErrors.revised && <p className="text-xs text-destructive" data-testid="text-date-error-revised">Completion date cannot be earlier than the start date.</p>}
             </div>
             <div className="space-y-2">
               <Label>Expected Completion Date</Label>
-              <Input type="date" value={form.updatedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, updatedDeliveryDate: e.target.value || null }))} data-testid="input-updated-delivery" />
+              <Input type="date" value={form.updatedDeliveryDate || ""} onChange={e => setForm(f => ({ ...f, updatedDeliveryDate: e.target.value || null }))} data-testid="input-updated-delivery" className={dateErrors.expected ? "border-destructive" : ""} />
+              {dateErrors.expected && <p className="text-xs text-destructive" data-testid="text-date-error-expected">Completion date cannot be earlier than the start date.</p>}
             </div>
           </div>
           {canEditOperational && (

@@ -132,12 +132,14 @@ export default function WeeklyReport() {
   const statusPieData = Object.entries(activityByStatus).map(([name, value]) => ({ name, value }));
 
   const plannedLabour = matchedPlan?.plannedLabour as any[] || [];
-  const totalPlannedWorkers = plannedLabour.reduce((s: number, l: any) => s + (l.plannedCount || 0), 0);
+  const dailyPlannedWorkers = plannedLabour.reduce((s: number, l: any) => s + (l.plannedCount || 0), 0);
+  const reportDays = filteredReports.length || 1;
+  const totalPlannedWorkers = dailyPlannedWorkers * reportDays;
 
   const comparisonData = plannedLabour.map((pl: any) => ({
     trade: pl.trade?.length > 10 ? pl.trade.substring(0, 10) + "..." : pl.trade,
     planned: pl.plannedCount || 0,
-    actual: labourByTrade[pl.trade] || 0,
+    actual: Math.round(((labourByTrade[pl.trade] || 0) / reportDays) * 100) / 100,
   }));
 
   return (
@@ -332,7 +334,7 @@ export default function WeeklyReport() {
       {matchedPlan && comparisonData.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Planned vs Actual Labour</CardTitle>
+            <CardTitle className="text-base">Planned vs Actual Daily Average Labour</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>

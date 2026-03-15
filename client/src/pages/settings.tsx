@@ -56,11 +56,6 @@ import {
   ChevronsUpDown,
   Check,
 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import type { User, Project } from "@shared/schema";
 import { ORG_ROLES, PERMISSIONS, PERMISSION_LABELS, SUPER_ADMIN_EMAIL } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -92,6 +87,7 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
     setPhone(user?.phone || "");
     setOrgRole(user?.orgRole || "");
     setSelectedProjectIds(user?.projectIds || []);
+    setProjectDropdownOpen(false);
   }, [user, open]);
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
@@ -186,26 +182,26 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
           </div>
           <div className="space-y-2">
             <Label>Assigned Projects</Label>
-            <Popover open={projectDropdownOpen} onOpenChange={setProjectDropdownOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  className="w-full justify-between font-normal"
-                  data-testid="select-project"
-                >
-                  <span className="truncate">
-                    {selectedProjectIds.includes(-1)
-                      ? "All Projects"
-                      : selectedProjectIds.length > 0
-                        ? `${selectedProjectIds.length} project${selectedProjectIds.length > 1 ? "s" : ""} selected`
-                        : "Select projects"}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <div className="max-h-60 overflow-y-auto p-1">
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between font-normal"
+                data-testid="select-project"
+                onClick={() => setProjectDropdownOpen(prev => !prev)}
+                type="button"
+              >
+                <span className="truncate">
+                  {selectedProjectIds.includes(-1)
+                    ? "All Projects"
+                    : selectedProjectIds.length > 0
+                      ? `${selectedProjectIds.length} project${selectedProjectIds.length > 1 ? "s" : ""} selected`
+                      : "Select projects"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+              {projectDropdownOpen && (
+                <div className="border rounded-md bg-popover shadow-md max-h-60 overflow-y-auto p-1">
                   <div
                     className="flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer hover:bg-accent"
                     onClick={() => {
@@ -245,8 +241,8 @@ function UserFormDialog({ user, open, onOpenChange }: { user?: User; open: boole
                     );
                   })}
                 </div>
-              </PopoverContent>
-            </Popover>
+              )}
+            </div>
           </div>
         </div>
         <DialogFooter>

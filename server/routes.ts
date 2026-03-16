@@ -867,6 +867,15 @@ export async function registerRoutes(
     res.json({ message: "Privileges updated" });
   });
 
+  app.get("/api/event-logs/top-users", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user || user.email !== SUPER_ADMIN_EMAIL) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    const stats = await storage.getTopUsersStats(5);
+    res.json(stats);
+  });
+
   app.get("/api/event-logs", requireAuth, async (req, res) => {
     const user = await storage.getUser(req.session.userId!);
     if (!user || user.email !== SUPER_ADMIN_EMAIL) {

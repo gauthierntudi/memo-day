@@ -38,7 +38,11 @@ import {
   Key,
   Shield,
   FileText,
+  User,
+  Clock,
+  Activity,
 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const PAGE_SIZE = 50;
 
@@ -118,6 +122,21 @@ export default function EventLogPage() {
     return () => clearTimeout(debounceRef.current);
   }, [searchInput]);
 
+  const { data: topUsers, isLoading: topUsersLoading } = useQuery<Array<{
+    userName: string;
+    userEmail: string | null;
+    operationCount: number;
+    totalConnectionMinutes: number;
+  }>>({
+    queryKey: ["/api/event-logs/top-users"],
+    queryFn: async () => {
+      const res = await fetch("/api/event-logs/top-users");
+      if (!res.ok) throw new Error("Failed to fetch top users");
+      return res.json();
+    },
+    enabled: isSuperAdmin,
+  });
+
   const actionParam = actionFilter !== "all" ? actionFilter : "";
   const { data, isLoading, isError } = useQuery<{
     logs: Array<{
@@ -168,6 +187,25 @@ export default function EventLogPage() {
   const total = data?.total || 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  const formatDuration = (minutes: number) => {
+    if (minutes < 1) return "< 1 min";
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours < 24) return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const avatarColors = [
+    "bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500", "bg-rose-500"
+  ];
+
   return (
     <div className="p-4 md:p-6 space-y-4" data-testid="page-event-log">
       <div className="flex items-center gap-3">
@@ -177,6 +215,58 @@ export default function EventLogPage() {
           <p className="text-sm text-muted-foreground">All system operations and user activities</p>
         </div>
       </div>
+
+      <Card data-testid="card-top-users">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Top 5 Active Users
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {topUsersLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : topUsers && topUsers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {topUsers.map((u, i) => (
+                <div
+                  key={u.userName}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                  data-testid={`card-top-user-${i}`}
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className={`${avatarColors[i % avatarColors.length]} text-white text-xs font-semibold`}>
+                      {getInitials(u.userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate" title={u.userName}>{u.userName}</p>
+                    {u.userEmail && (
+                      <p className="text-xs text-muted-foreground truncate" title={u.userEmail}>{u.userEmail}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs flex items-center gap-1 text-muted-foreground" title="Operations">
+                        <User className="h-3 w-3" />
+                        {u.operationCount}
+                      </span>
+                      <span className="text-xs flex items-center gap-1 text-muted-foreground" title="Connection time">
+                        <Clock className="h-3 w-3" />
+                        {formatDuration(u.totalConnectionMinutes)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">No user activity recorded yet</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">

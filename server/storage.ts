@@ -41,6 +41,7 @@ export interface IStorage {
   getEventLogs(limit?: number, offset?: number, action?: string, search?: string): Promise<EventLog[]>;
   getEventLogCount(action?: string, search?: string): Promise<number>;
   createEventLog(log: { userId?: string; userName: string; userEmail?: string; action: string; entityType?: string; entityId?: string; description: string }): Promise<EventLog>;
+  getTopUsersStats(limit?: number): Promise<Array<{ userName: string; userEmail: string | null; operationCount: number; totalConnectionMinutes: number }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -179,6 +180,45 @@ export class DatabaseStorage implements IStorage {
   async createEventLog(log: { userId?: string; userName: string; userEmail?: string; action: string; entityType?: string; entityId?: string; description: string }): Promise<EventLog> {
     const [created] = await db.insert(eventLogs).values(log).returning();
     return created;
+  }
+
+  async getTopUsersStats(limit = 5): Promise<Array<{ userName: string; userEmail: string | null; operationCount: number; totalConnectionMinutes: number }>> {
+    const topUsers = await db.select({
+      userName: eventLogs.userName,
+      userEmail: eventLogs.userEmail,
+      operationCount: sql<number>`count(*)::int`,
+    }).from(eventLogs).groupBy(eventLogs.userName, eventLogs.userEmail).orderBy(sql`count(*) DESC`).limit(limit);
+
+    const results = [];
+    for (const u of topUsers) {
+      const loginEvents = await db.select({ createdAt: eventLogs.createdAt })
+        .from(eventLogs)
+        .where(sql`${eventLogs.userName} = ${u.userName} AND ${eventLogs.action} = 'Login'`)
+        .orderBy(eventLogs.createdAt);
+      const logoutEvents = await db.select({ createdAt: eventLogs.createdAt })
+        .from(eventLogs)
+        .where(sql`${eventLogs.userName} = ${u.userName} AND ${eventLogs.action} = 'Logout'`)
+        .orderBy(eventLogs.createdAt);
+
+      let totalMinutes = 0;
+      const logouts = [...logoutEvents];
+      for (const login of loginEvents) {
+        const logoutIdx = logouts.findIndex(lo => lo.createdAt && login.createdAt && lo.createdAt > login.createdAt);
+        if (logoutIdx !== -1) {
+          const diff = (logouts[logoutIdx].createdAt!.getTime() - login.createdAt!.getTime()) / 60000;
+          totalMinutes += diff;
+          logouts.splice(logoutIdx, 1);
+        }
+      }
+
+      results.push({
+        userName: u.userName,
+        userEmail: u.userEmail,
+        operationCount: u.operationCount,
+        totalConnectionMinutes: Math.round(totalMinutes),
+      });
+    }
+    return results;
   }
 }
 

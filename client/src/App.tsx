@@ -21,6 +21,7 @@ import WeeklyReport from "@/pages/weekly-report";
 import ExecutiveSummary from "@/pages/executive-summary";
 import ProjectsOverview from "@/pages/projects-overview";
 import SettingsPage from "@/pages/settings";
+import EventLogPage from "@/pages/event-log";
 import LoginPage from "@/pages/login";
 import LandingPage from "@/pages/landing";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -71,6 +72,7 @@ function Router() {
       <Route path="/weekly-report">{() => <ProtectedRoute component={WeeklyReport} permission="view_weekly_report" />}</Route>
       <Route path="/executive-summary">{() => <ProtectedRoute component={ExecutiveSummary} permission="view_executive_summary" />}</Route>
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/event-log" component={EventLogPage} />
       <Route component={NotFound} />
     </Switch>
   );

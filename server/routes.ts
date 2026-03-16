@@ -5,6 +5,20 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { insertProjectSchema, insertDailyReportSchema, insertWeeklyPlanSchema, insertUserSchema, dailyReports, weeklyPlans, SUPER_ADMIN_EMAIL, ORG_ROLES, PERMISSIONS, type ActivityLogEntry } from "@shared/schema";
+
+async function logEvent(userId: string | undefined, action: string, description: string, entityType?: string, entityId?: string) {
+  try {
+    let userName = "System";
+    let userEmail: string | undefined;
+    if (userId) {
+      const user = await storage.getUser(userId);
+      if (user) { userName = user.name; userEmail = user.email; }
+    }
+    await storage.createEventLog({ userId, userName, userEmail, action, entityType, entityId, description });
+  } catch (e) {
+    console.error("Failed to log event:", e);
+  }
+}
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
@@ -230,6 +244,7 @@ export async function registerRoutes(
       }
       urls.push(`data:${mime};base64,${finalBuf.toString("base64")}`);
     }
+    logEvent(req.session.userId, "Upload Photos", `Uploaded ${urls.length} photo(s)`, "upload", undefined);
     res.json({ urls });
   });
 
@@ -263,12 +278,15 @@ export async function registerRoutes(
       req.session.userRole = user.appRole;
       req.session.save((err) => {
         if (err) return res.status(500).json({ message: "Session error" });
+        logEvent(user.id, "Login", `User logged in`, "user", user.id);
         res.json({ id: user.id, name: user.name, email: user.email, appRole: user.appRole, orgRole: user.orgRole });
       });
     });
   });
 
   app.post("/api/auth/logout", (req, res) => {
+    const uid = req.session.userId;
+    if (uid) logEvent(uid, "Logout", "User logged out", "user", uid);
     req.session.destroy((err) => {
       if (err) return res.status(500).json({ message: "Logout failed" });
       res.json({ message: "Logged out" });
@@ -303,6 +321,7 @@ export async function registerRoutes(
     }
     const hashed = await bcrypt.hash(newPassword, 12);
     await storage.updateUserPassword(user.id, hashed);
+    logEvent(req.session.userId, "Password Changed", "User changed their own password", "user", user.id);
     res.json({ message: "Password updated" });
   });
 
@@ -336,6 +355,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "A project with this code already exists" });
       }
       const project = await storage.createProject(validated);
+      logEvent(req.session.userId, "Create Project", `Created project "${validated.name}" (${validated.code})`, "project", String(project.id));
       res.status(201).json(project);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
@@ -366,6 +386,7 @@ export async function registerRoutes(
       }
       const project = await storage.updateProject(Number(req.params.id), partial);
       if (!project) return res.status(404).json({ message: "Project not found" });
+      logEvent(req.session.userId, "Update Project", `Updated project "${project.name}"`, "project", String(project.id));
       res.json(stripProjectFields(project, pp.canViewOperational, pp.canViewFinancial));
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
@@ -378,8 +399,10 @@ export async function registerRoutes(
     if (!canAccessProject(allowed, Number(req.params.id))) {
       return res.status(403).json({ message: "You do not have access to this project" });
     }
+    const proj = await storage.getProject(Number(req.params.id));
     const deleted = await storage.deleteProject(Number(req.params.id));
     if (!deleted) return res.status(404).json({ message: "Project not found" });
+    logEvent(req.session.userId, "Delete Project", `Deleted project "${proj?.name || req.params.id}"`, "project", req.params.id);
     res.json({ message: "Project deleted" });
   });
 
@@ -419,6 +442,7 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       const report = await storage.createDailyReport(validated);
       await appendDailyReportLog(report.id, "Created", user?.name || "Unknown");
+      logEvent(req.session.userId, "Create Daily Report", `Created daily report for ${validated.reportDate}`, "daily_report", String(report.id));
       const final = await storage.getDailyReport(report.id);
       res.status(201).json(final);
     } catch (err: unknown) {
@@ -440,6 +464,7 @@ export async function registerRoutes(
       const report = await storage.updateDailyReport(Number(req.params.id), partial);
       if (!report) return res.status(404).json({ message: "Report not found" });
       await appendDailyReportLog(report.id, "Saved", user?.name || "Unknown");
+      logEvent(req.session.userId, "Update Daily Report", `Updated daily report #${report.id} (${report.reportDate})`, "daily_report", String(report.id));
       const final = await storage.getDailyReport(report.id);
       res.json(final);
     } catch (err: unknown) {
@@ -470,6 +495,7 @@ export async function registerRoutes(
       if (updated) {
         await db.update(dailyReports).set({ submittedAt: new Date(), approvedAt: null }).where(eq(dailyReports.id, report.id));
         await appendDailyReportLog(report.id, "Submitted", user.name);
+        logEvent(req.session.userId, "Submit Daily Report", `Submitted daily report #${report.id} (${report.reportDate})`, "daily_report", String(report.id));
         const final = await storage.getDailyReport(report.id);
         return res.json(final);
       }
@@ -501,6 +527,7 @@ export async function registerRoutes(
       if (updated) {
         await db.update(dailyReports).set({ approvedAt: new Date() }).where(eq(dailyReports.id, report.id));
         await appendDailyReportLog(report.id, "Approved", user.name);
+        logEvent(req.session.userId, "Approve Daily Report", `Approved daily report #${report.id} (${report.reportDate})`, "daily_report", String(report.id));
         const final = await storage.getDailyReport(report.id);
         return res.json(final);
       }
@@ -532,6 +559,7 @@ export async function registerRoutes(
         approvedBy: null,
       });
       await appendDailyReportLog(report.id, "Rejected", user.name, reason || "No reason provided");
+      logEvent(req.session.userId, "Reject Daily Report", `Rejected daily report #${report.id} (${report.reportDate}): ${reason || "No reason"}`, "daily_report", String(report.id));
       const final = await storage.getDailyReport(report.id);
       res.json(final);
     } catch (err: unknown) {
@@ -580,6 +608,7 @@ export async function registerRoutes(
         }
       }
       const plan = await storage.createWeeklyPlan(validated);
+      logEvent(req.session.userId, "Create Weekly Plan", `Created weekly plan for week ${validated.weekNumber} (${validated.weekStartDate} — ${validated.weekEndDate})`, "weekly_plan", String(plan.id));
       res.status(201).json(plan);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
@@ -619,6 +648,7 @@ export async function registerRoutes(
       }
       const plan = await storage.updateWeeklyPlan(Number(req.params.id), partial);
       if (!plan) return res.status(404).json({ message: "Plan not found" });
+      logEvent(req.session.userId, "Update Weekly Plan", `Updated weekly plan #${plan.id}`, "weekly_plan", String(plan.id));
       res.json(plan);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });
@@ -647,6 +677,7 @@ export async function registerRoutes(
       });
       if (updated) {
         await db.update(weeklyPlans).set({ submittedAt: new Date(), approvedAt: null }).where(eq(weeklyPlans.id, plan.id));
+        logEvent(req.session.userId, "Submit Weekly Plan", `Submitted weekly plan #${plan.id}`, "weekly_plan", String(plan.id));
         const final = await storage.getWeeklyPlan(plan.id);
         return res.json(final);
       }
@@ -677,6 +708,7 @@ export async function registerRoutes(
       });
       if (updated) {
         await db.update(weeklyPlans).set({ approvedAt: new Date() }).where(eq(weeklyPlans.id, plan.id));
+        logEvent(req.session.userId, "Approve Weekly Plan", `Approved weekly plan #${plan.id}`, "weekly_plan", String(plan.id));
         const final = await storage.getWeeklyPlan(plan.id);
         return res.json(final);
       }
@@ -707,6 +739,7 @@ export async function registerRoutes(
         rejectionReason: reason || "No reason provided",
         approvedBy: null,
       });
+      logEvent(req.session.userId, "Reject Weekly Plan", `Rejected weekly plan #${plan.id}: ${reason || "No reason"}`, "weekly_plan", String(plan.id));
       res.json(updated);
     } catch (err: unknown) {
       console.error("Reject weekly plan error:", err);
@@ -736,6 +769,7 @@ export async function registerRoutes(
       const existing = await storage.getUserByEmail(validated.email);
       if (existing) return res.status(409).json({ message: "A user with this email already exists" });
       const user = await storage.createUser(validated);
+      logEvent(req.session.userId, "Create User", `Created user "${validated.name}" (${validated.email})`, "user", user.id);
       const { password, ...rest } = user;
       res.status(201).json(rest);
     } catch (err: unknown) {
@@ -760,6 +794,7 @@ export async function registerRoutes(
       const partial = insertUserSchema.partial().parse(req.body);
       const user = await storage.updateUser(id, partial);
       if (!user) return res.status(404).json({ message: "User not found" });
+      logEvent(req.session.userId, "Update User", `Updated user "${user.name}" (${user.email})`, "user", user.id);
       const { password, ...rest } = user;
       res.json(rest);
     } catch (err: unknown) {
@@ -777,6 +812,7 @@ export async function registerRoutes(
     }
     const deleted = await storage.deleteUser(id);
     if (!deleted) return res.status(404).json({ message: "User not found" });
+    logEvent(req.session.userId, "Delete User", `Deleted user "${targetUser.name}" (${targetUser.email})`, "user", id);
     res.json({ message: "User deleted" });
   });
 
@@ -791,6 +827,7 @@ export async function registerRoutes(
     if (!targetUser) return res.status(404).json({ message: "User not found" });
     const hashed = await bcrypt.hash(newPwd, 12);
     await storage.updateUserPassword(id, hashed);
+    logEvent(req.session.userId, "Set User Password", `Set password for user "${targetUser.name}" (${targetUser.email})`, "user", id);
     res.json({ message: "Password set" });
   });
 
@@ -826,7 +863,24 @@ export async function registerRoutes(
       const validPerms = (perms || []).filter(p => PERMISSIONS.includes(p as any));
       await storage.upsertRolePrivilege(role, validPerms);
     }
+    logEvent(req.session.userId, "Update Role Privileges", "Updated role privileges matrix", "role_privileges", undefined);
     res.json({ message: "Privileges updated" });
+  });
+
+  app.get("/api/event-logs", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user || user.email !== SUPER_ADMIN_EMAIL) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    const limit = Math.max(1, Math.min(Math.floor(Number(req.query.limit) || 100), 500));
+    const offset = Math.max(0, Math.floor(Number(req.query.offset) || 0));
+    const action = (req.query.action as string) || undefined;
+    const search = (req.query.search as string) || undefined;
+    const [logs, total] = await Promise.all([
+      storage.getEventLogs(limit, offset, action, search),
+      storage.getEventLogCount(action, search),
+    ]);
+    res.json({ logs, total, limit, offset });
   });
 
   return httpServer;

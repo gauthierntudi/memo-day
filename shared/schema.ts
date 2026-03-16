@@ -474,6 +474,20 @@ export const insertRolePrivilegeSchema = createInsertSchema(rolePrivileges).omit
 export type InsertRolePrivilege = z.infer<typeof insertRolePrivilegeSchema>;
 export type RolePrivilege = typeof rolePrivileges.$inferSelect;
 
+export const eventLogs = pgTable("event_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id"),
+  userName: text("user_name").notNull(),
+  userEmail: text("user_email"),
+  action: text("action").notNull(),
+  entityType: text("entity_type"),
+  entityId: text("entity_id"),
+  description: text("description").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type EventLog = typeof eventLogs.$inferSelect;
+
 export const APP_ROLES = ["admin", "user", "viewer"] as const;
 
 export const ORG_ROLES = [

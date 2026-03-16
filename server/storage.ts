@@ -1,12 +1,13 @@
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import {
-  projects, dailyReports, weeklyPlans, users, rolePrivileges,
+  projects, dailyReports, weeklyPlans, users, rolePrivileges, eventLogs,
   type Project, type InsertProject,
   type DailyReport, type InsertDailyReport,
   type WeeklyPlan, type InsertWeeklyPlan,
   type User, type InsertUser,
   type RolePrivilege,
+  type EventLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -36,6 +37,10 @@ export interface IStorage {
 
   getRolePrivileges(): Promise<RolePrivilege[]>;
   upsertRolePrivilege(orgRole: string, permissions: string[]): Promise<RolePrivilege>;
+
+  getEventLogs(limit?: number, offset?: number, action?: string, search?: string): Promise<EventLog[]>;
+  getEventLogCount(action?: string, search?: string): Promise<number>;
+  createEventLog(log: { userId?: string; userName: string; userEmail?: string; action: string; entityType?: string; entityId?: string; description: string }): Promise<EventLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -145,6 +150,34 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
     const [created] = await db.insert(rolePrivileges).values({ orgRole, permissions }).returning();
+    return created;
+  }
+
+  async getEventLogs(limit = 100, offset = 0, action?: string, search?: string): Promise<EventLog[]> {
+    const conditions = [];
+    if (action) conditions.push(eq(eventLogs.action, action));
+    if (search) {
+      const s = `%${search}%`;
+      conditions.push(sql`(${eventLogs.userName} ILIKE ${s} OR ${eventLogs.description} ILIKE ${s} OR ${eventLogs.userEmail} ILIKE ${s})`);
+    }
+    const where = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    return db.select().from(eventLogs).where(where).orderBy(desc(eventLogs.createdAt)).limit(limit).offset(offset);
+  }
+
+  async getEventLogCount(action?: string, search?: string): Promise<number> {
+    const conditions = [];
+    if (action) conditions.push(eq(eventLogs.action, action));
+    if (search) {
+      const s = `%${search}%`;
+      conditions.push(sql`(${eventLogs.userName} ILIKE ${s} OR ${eventLogs.description} ILIKE ${s} OR ${eventLogs.userEmail} ILIKE ${s})`);
+    }
+    const where = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    const result = await db.select({ count: sql`count(*)::int` }).from(eventLogs).where(where);
+    return result[0]?.count as number || 0;
+  }
+
+  async createEventLog(log: { userId?: string; userName: string; userEmail?: string; action: string; entityType?: string; entityId?: string; description: string }): Promise<EventLog> {
+    const [created] = await db.insert(eventLogs).values(log).returning();
     return created;
   }
 }

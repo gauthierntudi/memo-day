@@ -23,6 +23,7 @@ client/src/
     weekly-report.tsx      - Auto-generated weekly report with charts comparing plan vs actual
     executive-summary.tsx  - Executive summaries with weekly/monthly/quarterly views
     projects-overview.tsx  - Portfolio-level KPIs, charts, and performance analysis across all projects
+    event-log.tsx          - Super admin event log with all system operations, users, timestamps, descriptions
   components/
     app-sidebar.tsx        - Navigation sidebar
     photo-grid.tsx         - Reusable photo grid with upload, enlarge, show/hide toggle (max 20, 3 visible by default)
@@ -64,9 +65,10 @@ shared/
 - `GET /api/my-permissions` - Get current user's permissions based on org role
 - `GET /api/role-privileges` - Get all role privileges matrix
 - `PUT /api/role-privileges` - Update role privileges matrix
+- `GET /api/event-logs` - Get paginated event logs (super admin only, ?limit=&offset=)
 
 ## Database
-PostgreSQL with tables: projects, daily_reports, weekly_plans, users
+PostgreSQL with tables: projects, daily_reports, weekly_plans, users, event_logs
 JSONB columns used for arrays (work_activities, labour_force, subcontractors, etc.)
 New columns: `budgeted_cost`, `updated_cost` on projects table for cost planning; Budgeted GP = (Contract Value - Budgeted Cost) / Contract Value; Updated GP = (Updated Contract Value - Updated Cost) / Updated Contract Value
 JSONB columns `direct_cost_details` and `indirect_cost_details` store cost breakdowns:

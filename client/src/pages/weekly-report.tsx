@@ -55,7 +55,7 @@ const CHART_COLORS = [
 export default function WeeklyReport() {
   const { projectIds: allowedProjectIds, hasAllProjects } = usePermissions();
   const [selectedProject, setSelectedProject] = useState("all");
-  const [selectedWeek, setSelectedWeek] = useState("all");
+  const [selectedWeek, setSelectedWeek] = useState("last_completed");
 
   const { data: projects } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
   const { data: reports, isLoading: loadingReports } = useQuery<DailyReport[]>({ queryKey: ["/api/daily-reports"] });
@@ -75,10 +75,14 @@ export default function WeeklyReport() {
   const approvedPlans = plans?.filter(p => p.status === "approved") || [];
   const approvedReports = reports?.filter(r => r.status === "approved") || [];
 
-  const matchedPlan = selectedWeek !== "all"
-    ? approvedPlans.find(p => p.id === Number(selectedWeek))
-    : approvedPlans.filter(p => selectedProject === "all" || p.projectId === Number(selectedProject))
-        .sort((a, b) => b.weekNumber - a.weekNumber)[0];
+  const today = new Date().toISOString().split("T")[0];
+  const matchedPlan = selectedWeek === "all"
+    ? approvedPlans.filter(p => selectedProject === "all" || p.projectId === Number(selectedProject))
+        .sort((a, b) => b.weekNumber - a.weekNumber)[0]
+    : selectedWeek === "last_completed"
+    ? approvedPlans.filter(p => (selectedProject === "all" || p.projectId === Number(selectedProject)) && p.weekEndDate < today)
+        .sort((a, b) => b.weekEndDate.localeCompare(a.weekEndDate))[0]
+    : approvedPlans.find(p => p.id === Number(selectedWeek));
 
   const filteredReports = approvedReports.filter(r => {
     if (selectedProject !== "all" && r.projectId !== Number(selectedProject)) return false;
@@ -89,7 +93,7 @@ export default function WeeklyReport() {
     return true;
   });
 
-  const missingPlan = !matchedPlan && selectedProject !== "all";
+  const missingPlan = !matchedPlan && (selectedProject !== "all" || selectedWeek === "last_completed");
   const missingReports = filteredReports.length === 0 && (matchedPlan || selectedProject !== "all");
 
   const totalWorkers = filteredReports.reduce((sum, r) => {
@@ -164,6 +168,7 @@ export default function WeeklyReport() {
               <SelectValue placeholder="Week" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="last_completed">Last Completed Week</SelectItem>
               <SelectItem value="all">Latest Plan</SelectItem>
               {approvedPlans
                 .filter(p => selectedProject === "all" || p.projectId === Number(selectedProject))

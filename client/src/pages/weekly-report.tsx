@@ -96,10 +96,22 @@ export default function WeeklyReport() {
   const missingPlan = !matchedPlan && (selectedProject !== "all" || selectedWeek === "last_completed");
   const missingReports = filteredReports.length === 0 && (matchedPlan || selectedProject !== "all");
 
-  const totalWorkers = filteredReports.reduce((sum, r) => {
-    const labour = r.labourForce as any[];
-    return sum + (labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0);
-  }, 0);
+  const totalWorkers = (() => {
+    const byProject = new Map<number, { total: number; count: number }>();
+    for (const r of filteredReports) {
+      const labour = r.labourForce as any[];
+      const workers = labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0;
+      const entry = byProject.get(r.projectId) || { total: 0, count: 0 };
+      entry.total += workers;
+      entry.count += 1;
+      byProject.set(r.projectId, entry);
+    }
+    let sum = 0;
+    for (const { total, count } of byProject.values()) {
+      sum += count > 0 ? Math.round(total / count) : 0;
+    }
+    return sum;
+  })();
 
   const totalSafetyIncidents = filteredReports.reduce((sum, r) => {
     return sum + ((r.safetyIncidents as any[])?.length || 0);

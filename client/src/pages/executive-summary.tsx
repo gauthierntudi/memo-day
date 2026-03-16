@@ -64,33 +64,54 @@ export default function ExecutiveSummary() {
     try {
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
-      const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth - 20;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 10;
-      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-      heightLeft -= (pdfHeight - 20);
-      while (heightLeft > 0) {
-        position = -(imgHeight - heightLeft) + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-        heightLeft -= (pdfHeight - 20);
+      const margin = 10;
+      const usableWidth = pdfWidth - margin * 2;
+      const usableHeight = pdfHeight - margin * 2;
+      const gap = 3;
+
+      const units = contentRef.current.querySelectorAll("[data-pdf-section]");
+      const widgets: { imgData: string; imgHeight: number }[] = [];
+
+      for (const unit of Array.from(units)) {
+        if (!(unit instanceof HTMLElement)) continue;
+        const canvas = await html2canvas(unit, { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff" });
+        const imgData = canvas.toDataURL("image/png");
+        let imgHeight = (canvas.height * usableWidth) / canvas.width;
+        if (imgHeight > usableHeight) {
+          const scale = usableHeight / imgHeight;
+          imgHeight = usableHeight;
+          const scaledWidth = usableWidth * scale;
+          widgets.push({ imgData, imgHeight, scaledWidth } as any);
+          continue;
+        }
+        widgets.push({ imgData, imgHeight });
       }
+
+      let cursorY = margin;
+      let pageStarted = false;
+
+      for (const widget of widgets) {
+        const w = widget as any;
+        const drawWidth = w.scaledWidth || usableWidth;
+        const drawX = w.scaledWidth ? margin + (usableWidth - w.scaledWidth) / 2 : margin;
+        if (pageStarted && cursorY + widget.imgHeight > pdfHeight - margin) {
+          pdf.addPage();
+          cursorY = margin;
+        }
+        pageStarted = true;
+        pdf.addImage(widget.imgData, "PNG", drawX, cursorY, drawWidth, widget.imgHeight);
+        cursorY += widget.imgHeight + gap;
+      }
+
       const projectName = selectedProject === "all" ? "All-Projects" : (projects?.find(p => p.id === Number(selectedProject))?.name || "Project");
       const filename = `Executive-Summary-${projectName}-${period}-${new Date().toISOString().split("T")[0]}.pdf`;
       pdf.save(filename);
       toast({ title: "PDF downloaded successfully" });
     } catch (err) {
+      console.error("PDF generation error:", err);
       toast({ title: "Failed to generate PDF", variant: "destructive" });
     } finally {
       setGeneratingPdf(false);
@@ -256,7 +277,7 @@ export default function ExecutiveSummary() {
         </TabsList>
 
         <TabsContent value={period} className="mt-4 space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-pdf-section>
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2">
@@ -322,7 +343,7 @@ export default function ExecutiveSummary() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card data-pdf-section>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Workforce & Progress Trend</CardTitle>
               </CardHeader>
@@ -353,7 +374,7 @@ export default function ExecutiveSummary() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card data-pdf-section>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Equipment Utilization (hours)</CardTitle>
               </CardHeader>
@@ -383,7 +404,7 @@ export default function ExecutiveSummary() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            <Card>
+            <Card data-pdf-section>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Safety Breakdown</CardTitle>
               </CardHeader>
@@ -411,7 +432,7 @@ export default function ExecutiveSummary() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card data-pdf-section>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2"><Wrench className="h-4 w-4" /> Site Housekeeping</CardTitle>
               </CardHeader>
@@ -434,7 +455,7 @@ export default function ExecutiveSummary() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card data-pdf-section>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2"><Package className="h-4 w-4" /> Materials Summary</CardTitle>
               </CardHeader>
@@ -459,7 +480,7 @@ export default function ExecutiveSummary() {
             </Card>
           </div>
 
-          <Card>
+          <Card data-pdf-section>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Trade Performance Summary</CardTitle>
             </CardHeader>

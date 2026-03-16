@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -121,9 +120,43 @@ export default function WeeklyReport() {
     return sum + ((r.securityIncidents as any[])?.length || 0);
   }, 0);
 
-  const avgProgress = filteredReports.length > 0
-    ? Math.round(filteredReports.reduce((sum, r) => sum + (r.overallProgress || 0), 0) / filteredReports.length)
-    : 0;
+  const areaOfFocus = (() => {
+    const tradeStats = new Map<string, { totalProgress: number; progressCount: number; totalWorkers: number }>();
+    for (const r of filteredReports) {
+      const acts = r.workActivities as any[];
+      acts?.forEach((a: any) => {
+        if (!a.trade) return;
+        const entry = tradeStats.get(a.trade) || { totalProgress: 0, progressCount: 0, totalWorkers: 0 };
+        entry.totalProgress += (a.percentComplete || 0);
+        entry.progressCount += 1;
+        tradeStats.set(a.trade, entry);
+      });
+      const labour = r.labourForce as any[];
+      labour?.forEach((l: any) => {
+        if (!l.trade) return;
+        const entry = tradeStats.get(l.trade) || { totalProgress: 0, progressCount: 0, totalWorkers: 0 };
+        entry.totalWorkers += (l.count || 0);
+        tradeStats.set(l.trade, entry);
+      });
+    }
+    let bestTrade = "";
+    let bestScore = -1;
+    for (const [trade, stats] of tradeStats.entries()) {
+      const avgProg = stats.progressCount > 0 ? stats.totalProgress / stats.progressCount : 0;
+      const score = avgProg + stats.totalWorkers;
+      if (score > bestScore) {
+        bestScore = score;
+        bestTrade = trade;
+      }
+    }
+    if (!bestTrade) return { trade: "N/A", avgProgress: 0, totalWorkers: 0 };
+    const s = tradeStats.get(bestTrade)!;
+    return {
+      trade: bestTrade,
+      avgProgress: s.progressCount > 0 ? Math.round(s.totalProgress / s.progressCount) : 0,
+      totalWorkers: s.totalWorkers,
+    };
+  })();
 
   const labourByTrade: Record<string, number> = {};
   filteredReports.forEach(r => {
@@ -253,9 +286,9 @@ export default function WeeklyReport() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-sm text-muted-foreground">Avg. Progress</p>
-                <p className="text-2xl font-bold">{avgProgress}%</p>
-                <Progress value={avgProgress} className="mt-2 h-1.5" />
+                <p className="text-sm text-muted-foreground">Area of Focus</p>
+                <p className="text-lg font-bold truncate max-w-[140px]" title={areaOfFocus.trade}>{areaOfFocus.trade}</p>
+                <p className="text-xs text-muted-foreground">{areaOfFocus.avgProgress}% avg progress · {areaOfFocus.totalWorkers} workers</p>
               </div>
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-chart-4">
                 <Target className="h-5 w-5 text-primary-foreground" />

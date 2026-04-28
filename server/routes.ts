@@ -19,7 +19,7 @@ async function logEvent(userId: string | undefined, action: string, description:
     console.error("Failed to log event:", e);
   }
 }
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
 import multer from "multer";
@@ -649,6 +649,36 @@ export async function registerRoutes(
       const plan = await storage.updateWeeklyPlan(Number(req.params.id), partial);
       if (!plan) return res.status(404).json({ message: "Plan not found" });
       logEvent(req.session.userId, "Update Weekly Plan", `Updated weekly plan #${plan.id}`, "weekly_plan", String(plan.id));
+      res.json(plan);
+    } catch (err: unknown) {
+      res.status(400).json({ message: handleZodError(err) });
+    }
+  });
+
+  app.post("/api/weekly-plans/:id/actual-progress", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_save_weekly_plan"))) return;
+    try {
+      const existing = await storage.getWeeklyPlan(Number(req.params.id));
+      if (!existing) return res.status(404).json({ message: "Plan not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, existing.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
+      const bodySchema = z.object({
+        actuals: z.array(z.object({
+          index: z.number().int().min(0),
+          actualPercent: z.number().finite().min(0).max(100),
+        })).max(500),
+      });
+      const { actuals } = bodySchema.parse(req.body);
+      const current = (existing.plannedActivities as any[]) || [];
+      const updated = current.map((a, i) => {
+        const found = actuals.find(x => x.index === i);
+        return found ? { ...a, actualPercent: found.actualPercent } : a;
+      });
+      const plan = await storage.updateWeeklyPlan(existing.id, { plannedActivities: updated as any });
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+      logEvent(req.session.userId, "Update Actual Progress", `Updated actual progress on weekly plan #${plan.id}`, "weekly_plan", String(plan.id));
       res.json(plan);
     } catch (err: unknown) {
       res.status(400).json({ message: handleZodError(err) });

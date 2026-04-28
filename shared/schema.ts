@@ -221,6 +221,7 @@ export interface PlannedActivity {
   description: string;
   targetPercent: number;
   priority: string;
+  actualPercent?: number;
 }
 
 export interface PlannedLabour {

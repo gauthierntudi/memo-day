@@ -20,6 +20,7 @@ client/src/
     projects-steering.tsx  - Projects Steering page (same as Projects but without Financial Indicators)
     weekly-plans.tsx       - List of weekly plans
     weekly-plan-form.tsx   - Weekly plan creation with activities, labour, subcontractors, targets, milestones
+    planned-activities.tsx - Planned Activities tracking page (select project + week, view planned activities, enter actual progress %, save back into plannedActivities JSONB)
     weekly-report.tsx      - Auto-generated weekly report with charts comparing plan vs actual
     executive-summary.tsx  - Executive summaries with weekly/monthly/quarterly views
     projects-overview.tsx  - Portfolio-level KPIs, charts, and performance analysis across all projects

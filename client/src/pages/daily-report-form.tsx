@@ -336,7 +336,7 @@ export default function DailyReportForm() {
           <TabsList className="inline-flex w-auto">
             <TabsTrigger value="general" data-testid="tab-general">General</TabsTrigger>
             <TabsTrigger value="weather" data-testid="tab-weather">Weather</TabsTrigger>
-            <TabsTrigger value="activities" data-testid="tab-activities">Activities</TabsTrigger>
+            <TabsTrigger value="activities" data-testid="tab-activities">Additional Activities</TabsTrigger>
             <TabsTrigger value="labour" data-testid="tab-labour">Labour</TabsTrigger>
             <TabsTrigger value="subcontractors" data-testid="tab-subcontractors">Subcontractors</TabsTrigger>
             <TabsTrigger value="safety" data-testid="tab-safety">Safety</TabsTrigger>

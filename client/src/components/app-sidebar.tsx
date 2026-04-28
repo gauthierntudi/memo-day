@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   ClipboardList,
   CalendarRange,
-  ListChecks,
   BarChart3,
   FileText,
   Building2,
@@ -42,7 +41,6 @@ const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "view_dashboard" },
   { title: "Daily Reports", url: "/daily-reports", icon: ClipboardList, permission: "view_daily_report" },
   { title: "Weekly Plan", url: "/weekly-plans", icon: CalendarRange, permission: "view_weekly_plan" },
-  { title: "Planned Activities", url: "/planned-activities", icon: ListChecks, permission: "view_weekly_plan" },
   { title: "Weekly Report", url: "/weekly-report", icon: BarChart3, permission: "view_weekly_report" },
   { title: "Executive Summary", url: "/executive-summary", icon: FileText, permission: "view_executive_summary" },
 ];

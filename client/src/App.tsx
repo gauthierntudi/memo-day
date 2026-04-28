@@ -17,7 +17,6 @@ import Projects from "@/pages/projects";
 import ProjectsSteering from "@/pages/projects-steering";
 import WeeklyPlans from "@/pages/weekly-plans";
 import WeeklyPlanForm from "@/pages/weekly-plan-form";
-import PlannedActivities from "@/pages/planned-activities";
 import WeeklyReport from "@/pages/weekly-report";
 import ExecutiveSummary from "@/pages/executive-summary";
 import ProjectsOverview from "@/pages/projects-overview";
@@ -70,7 +69,6 @@ function Router() {
       <Route path="/weekly-plans">{() => <ProtectedRoute component={WeeklyPlans} permission="view_weekly_plan" />}</Route>
       <Route path="/weekly-plans/new">{() => <ProtectedRoute component={WeeklyPlanForm} permission="view_weekly_plan" />}</Route>
       <Route path="/weekly-plans/:id">{() => <ProtectedRoute component={WeeklyPlanForm} permission="view_weekly_plan" />}</Route>
-      <Route path="/planned-activities">{() => <ProtectedRoute component={PlannedActivities} permission="view_weekly_plan" />}</Route>
       <Route path="/weekly-report">{() => <ProtectedRoute component={WeeklyReport} permission="view_weekly_report" />}</Route>
       <Route path="/executive-summary">{() => <ProtectedRoute component={ExecutiveSummary} permission="view_executive_summary" />}</Route>
       <Route path="/settings" component={SettingsPage} />

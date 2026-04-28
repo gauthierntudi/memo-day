@@ -22,6 +22,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PhotoGrid } from "@/components/photo-grid";
+import { PlannedActivitiesTab } from "@/components/planned-activities-tab";
 import {
   Dialog,
   DialogContent,
@@ -336,6 +337,7 @@ export default function DailyReportForm() {
           <TabsList className="inline-flex w-auto">
             <TabsTrigger value="general" data-testid="tab-general">General</TabsTrigger>
             <TabsTrigger value="weather" data-testid="tab-weather">Weather</TabsTrigger>
+            <TabsTrigger value="planned-activities" data-testid="tab-planned-activities">Planned Activities</TabsTrigger>
             <TabsTrigger value="activities" data-testid="tab-activities">Additional Activities</TabsTrigger>
             <TabsTrigger value="labour" data-testid="tab-labour">Labour</TabsTrigger>
             <TabsTrigger value="subcontractors" data-testid="tab-subcontractors">Subcontractors</TabsTrigger>
@@ -473,6 +475,10 @@ export default function DailyReportForm() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="planned-activities" className="space-y-4 mt-4">
+          <PlannedActivitiesTab projectId={projectId} reportDate={reportDate} />
         </TabsContent>
 
         <TabsContent value="activities" className="space-y-4 mt-4">

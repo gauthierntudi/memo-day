@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PhotoGrid } from "@/components/photo-grid";
 import { PlannedActivitiesTab } from "@/components/planned-activities-tab";
+import { PlannedLabourTab } from "@/components/planned-labour-tab";
 import {
   Dialog,
   DialogContent,
@@ -339,7 +340,8 @@ export default function DailyReportForm() {
             <TabsTrigger value="weather" data-testid="tab-weather">Weather</TabsTrigger>
             <TabsTrigger value="planned-activities" data-testid="tab-planned-activities">Planned Activities</TabsTrigger>
             <TabsTrigger value="activities" data-testid="tab-activities">Additional Activities</TabsTrigger>
-            <TabsTrigger value="labour" data-testid="tab-labour">Labour</TabsTrigger>
+            <TabsTrigger value="planned-labour" data-testid="tab-planned-labour">Planned Labour</TabsTrigger>
+            <TabsTrigger value="labour" data-testid="tab-labour">Additional Labour</TabsTrigger>
             <TabsTrigger value="subcontractors" data-testid="tab-subcontractors">Subcontractors</TabsTrigger>
             <TabsTrigger value="safety" data-testid="tab-safety">Safety</TabsTrigger>
             <TabsTrigger value="security" data-testid="tab-security">Security</TabsTrigger>
@@ -535,6 +537,10 @@ export default function DailyReportForm() {
               ))}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="planned-labour" className="space-y-4 mt-4">
+          <PlannedLabourTab projectId={projectId} reportDate={reportDate} />
         </TabsContent>
 
         <TabsContent value="labour" className="space-y-4 mt-4">

@@ -227,6 +227,7 @@ export interface PlannedActivity {
 export interface PlannedLabour {
   trade: string;
   plannedCount: number;
+  actualCount?: number;
 }
 
 export interface PlannedSubcontractor {

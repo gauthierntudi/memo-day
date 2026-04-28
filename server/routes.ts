@@ -655,6 +655,36 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/weekly-plans/:id/actual-labour", requireAuth, async (req, res) => {
+    if (!(await requirePermission(req, res, "edit_save_weekly_plan"))) return;
+    try {
+      const existing = await storage.getWeeklyPlan(Number(req.params.id));
+      if (!existing) return res.status(404).json({ message: "Plan not found" });
+      const allowed = await getUserAllowedProjectIds(req.session.userId!);
+      if (!canAccessProject(allowed, existing.projectId)) {
+        return res.status(403).json({ message: "You do not have access to this project" });
+      }
+      const bodySchema = z.object({
+        actuals: z.array(z.object({
+          index: z.number().int().min(0),
+          actualCount: z.number().finite().min(0).max(100000),
+        })).max(500),
+      });
+      const { actuals } = bodySchema.parse(req.body);
+      const current = (existing.plannedLabour as any[]) || [];
+      const updated = current.map((l, i) => {
+        const found = actuals.find(x => x.index === i);
+        return found ? { ...l, actualCount: found.actualCount } : l;
+      });
+      const plan = await storage.updateWeeklyPlan(existing.id, { plannedLabour: updated as any });
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+      logEvent(req.session.userId, "Update Actual Labour", `Updated actual labour on weekly plan #${plan.id}`, "weekly_plan", String(plan.id));
+      res.json(plan);
+    } catch (err: unknown) {
+      res.status(400).json({ message: handleZodError(err) });
+    }
+  });
+
   app.post("/api/weekly-plans/:id/actual-progress", requireAuth, async (req, res) => {
     if (!(await requirePermission(req, res, "edit_save_weekly_plan"))) return;
     try {

@@ -13,7 +13,7 @@ A comprehensive construction management application for collecting daily constru
 ```
 client/src/
   pages/
-    dashboard.tsx          - Main dashboard with stats and quick links
+    dashboard.tsx          - Main dashboard with stats, quick links, and Peak Workforce section (max workers per Day / Week / Month / YTD with the project that achieved each peak; ISO weeks via date-fns; YTD = current calendar year)
     daily-reports.tsx      - List of daily reports with filtering
     daily-report-form.tsx  - Multi-tab daily report form (General, Weather, Planned Activities, Additional Activities, Planned Labour, Additional Labour, Subcontractors, Safety, Security, Housekeeping, Equipment, Materials, Inventory). Planned Activities tab uses `<PlannedActivitiesTab>` (POST /api/weekly-plans/:id/actual-progress); Planned Labour tab uses `<PlannedLabourTab>` (POST /api/weekly-plans/:id/actual-labour). Both tabs auto-find the weekly plan covering the report date for the selected project, render planned items, and let the PM enter actual values that persist back into the weekly plan's JSONB.
     projects.tsx           - Project management page (accepts hideFinancial, pageTitle props)

@@ -14,9 +14,121 @@ import {
   Plus,
   ArrowRight,
   BarChart3,
+  Trophy,
 } from "lucide-react";
 import type { DailyReport, Project, WeeklyPlan } from "@shared/schema";
 import { usePermissions } from "@/hooks/use-permissions";
+import { format, getISOWeek, getISOWeekYear, parseISO } from "date-fns";
+
+function workersIn(report: DailyReport): number {
+  const labour = report.labourForce as any[];
+  return labour?.reduce((s, l) => s + (Number(l?.count) || 0), 0) || 0;
+}
+
+interface PeakBucket {
+  workers: number;
+  projectId: number;
+  label: string;
+  date?: string;
+}
+
+function computePeaks(reports: DailyReport[]) {
+  const currentYear = new Date().getFullYear();
+  let peakDay: PeakBucket | null = null;
+  const weekMap = new Map<string, PeakBucket>();
+  const monthMap = new Map<string, PeakBucket>();
+  const ytdMap = new Map<number, number>();
+
+  for (const r of reports) {
+    const w = workersIn(r);
+    if (w <= 0 || !r.reportDate) continue;
+    let d: Date;
+    try { d = parseISO(r.reportDate); } catch { continue; }
+    if (isNaN(d.getTime())) continue;
+
+    if (!peakDay || w > peakDay.workers) {
+      peakDay = { workers: w, projectId: r.projectId, label: format(d, "MMM d, yyyy"), date: r.reportDate };
+    }
+
+    const isoWeek = getISOWeek(d);
+    const isoYear = getISOWeekYear(d);
+    const weekKey = `${isoYear}-W${String(isoWeek).padStart(2, "0")}-${r.projectId}`;
+    const wPrev = weekMap.get(weekKey);
+    weekMap.set(weekKey, {
+      workers: (wPrev?.workers || 0) + w,
+      projectId: r.projectId,
+      label: `Week ${isoWeek}, ${isoYear}`,
+    });
+
+    const monthKey = `${format(d, "yyyy-MM")}-${r.projectId}`;
+    const mPrev = monthMap.get(monthKey);
+    monthMap.set(monthKey, {
+      workers: (mPrev?.workers || 0) + w,
+      projectId: r.projectId,
+      label: format(d, "MMMM yyyy"),
+    });
+
+    if (d.getFullYear() === currentYear) {
+      ytdMap.set(r.projectId, (ytdMap.get(r.projectId) || 0) + w);
+    }
+  }
+
+  const peakWeek = [...weekMap.values()].reduce<PeakBucket | null>(
+    (best, b) => (!best || b.workers > best.workers ? b : best), null
+  );
+  const peakMonth = [...monthMap.values()].reduce<PeakBucket | null>(
+    (best, b) => (!best || b.workers > best.workers ? b : best), null
+  );
+  let peakYtd: PeakBucket | null = null;
+  for (const [pid, total] of ytdMap.entries()) {
+    if (!peakYtd || total > peakYtd.workers) {
+      peakYtd = { workers: total, projectId: pid, label: `${currentYear} (YTD)` };
+    }
+  }
+
+  return { peakDay, peakWeek, peakMonth, peakYtd };
+}
+
+function PeakCard({ title, peak, projects, testIdSuffix }: {
+  title: string;
+  peak: PeakBucket | null;
+  projects: Project[] | undefined;
+  testIdSuffix: string;
+}) {
+  const project = peak ? projects?.find(p => p.id === peak.projectId) : undefined;
+  return (
+    <Card data-testid={`peak-card-${testIdSuffix}`}>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 min-w-0">
+            <p className="text-sm text-muted-foreground">{title}</p>
+            {peak ? (
+              <>
+                <p className="text-2xl font-bold tracking-tight" data-testid={`peak-workers-${testIdSuffix}`}>
+                  {peak.workers}
+                </p>
+                <p className="text-xs text-muted-foreground" data-testid={`peak-period-${testIdSuffix}`}>
+                  {peak.label}
+                </p>
+                <p className="text-xs font-medium truncate" data-testid={`peak-project-${testIdSuffix}`}>
+                  {project?.name || "—"}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-bold tracking-tight">—</p>
+                <p className="text-xs text-muted-foreground">No data yet</p>
+              </>
+            )}
+          </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-chart-4">
+            <Trophy className="h-5 w-5 text-primary-foreground" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function StatCard({ title, value, icon: Icon, description, color }: {
   title: string;
@@ -70,6 +182,8 @@ export default function Dashboard() {
   }, 0) || 0;
 
   const recentReports = reports?.slice(-5).reverse() || [];
+
+  const peaks = computePeaks(reports || []);
 
   if (isLoading) {
     return (
@@ -130,6 +244,23 @@ export default function Dashboard() {
           color={safetyIncidentCount > 0 ? "bg-destructive" : "bg-chart-4"}
         />
       </div>
+
+      <Card data-testid="peak-workforce-section">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-chart-4" /> Peak Workforce
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Highest worker counts by period, with the project that achieved them</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <PeakCard title="Peak Day" peak={peaks.peakDay} projects={projects} testIdSuffix="day" />
+            <PeakCard title="Peak Week" peak={peaks.peakWeek} projects={projects} testIdSuffix="week" />
+            <PeakCard title="Peak Month" peak={peaks.peakMonth} projects={projects} testIdSuffix="month" />
+            <PeakCard title="Peak YTD" peak={peaks.peakYtd} projects={projects} testIdSuffix="ytd" />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

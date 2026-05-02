@@ -171,9 +171,9 @@ export default function Dashboard() {
 
   const isLoading = loadingProjects || loadingReports || loadingPlans;
 
-  const totalLabour = reports?.reduce((sum, r) => {
+  const totalManHours = reports?.reduce((sum, r) => {
     const labour = r.labourForce as any[];
-    return sum + (labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0);
+    return sum + (labour?.reduce((s: number, l: any) => s + ((l.count || 0) * (l.hours || 8)), 0) || 0);
   }, 0) || 0;
 
   const safetyIncidentCount = reports?.reduce((sum, r) => {
@@ -230,8 +230,8 @@ export default function Dashboard() {
           color="bg-chart-2"
         />
         <StatCard
-          title="Total Workers"
-          value={totalLabour}
+          title="Total Man-Hours"
+          value={totalManHours.toLocaleString()}
           icon={Users}
           description="Across all reports"
           color="bg-chart-4"

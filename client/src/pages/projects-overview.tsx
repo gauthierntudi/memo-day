@@ -55,7 +55,8 @@ function KpiCard({ title, value, subtitle, icon: Icon, trend, color }: {
 
 export default function ProjectsOverview() {
   const { data: projects, isLoading } = useQuery<Project[]>({ queryKey: ["/api/projects"] });
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -91,8 +92,9 @@ export default function ProjectsOverview() {
         pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
         heightLeft -= (pdfHeight - 20);
       }
-      const filterLabel = categoryFilter === "all" ? "All" : categoryFilter;
-      const filename = `Projects-Overview-${filterLabel}-${new Date().toISOString().split("T")[0]}.pdf`;
+      const clientLabel = clientFilter === "all" ? "All" : clientFilter;
+      const statusLabel = statusFilter === "all" ? "All" : statusFilter;
+      const filename = `Projects-Overview-${clientLabel}-${statusLabel}-${new Date().toISOString().split("T")[0]}.pdf`;
       pdf.save(filename);
       toast({ title: "PDF downloaded successfully" });
     } catch (err) {
@@ -100,7 +102,7 @@ export default function ProjectsOverview() {
     } finally {
       setGeneratingPdf(false);
     }
-  }, [categoryFilter, toast]);
+  }, [clientFilter, statusFilter, toast]);
 
   if (isLoading) {
     return (
@@ -112,10 +114,9 @@ export default function ProjectsOverview() {
 
   const allProjects = projects ?? [];
   const all = allProjects.filter(p => {
-    if (categoryFilter === "all") return true;
-    if (categoryFilter === "Own" || categoryFilter === "Group" || categoryFilter === "Non-group") return p.clientType === categoryFilter;
-    if (categoryFilter === "ongoing") return p.status === "active";
-    if (categoryFilter === "completed") return p.status === "completed";
+    if (clientFilter !== "all" && p.clientType !== clientFilter) return false;
+    if (statusFilter === "ongoing" && p.status !== "active") return false;
+    if (statusFilter === "completed" && p.status !== "completed") return false;
     return true;
   });
   const active = all.filter(p => p.status === "active");
@@ -257,15 +258,23 @@ export default function ProjectsOverview() {
             <h1 className="text-2xl font-bold" data-testid="text-page-title">Projects Overview</h1>
             <p className="text-sm text-muted-foreground">Portfolio performance indicators and analytics</p>
           </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[150px] h-9" data-testid="select-category-filter">
-              <SelectValue placeholder="Category" />
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-[150px] h-9" data-testid="select-client-filter">
+              <SelectValue placeholder="Client" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="all">All Clients</SelectItem>
               <SelectItem value="Own">Own</SelectItem>
               <SelectItem value="Group">Group</SelectItem>
               <SelectItem value="Non-group">Non-group</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px] h-9" data-testid="select-status-filter">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="ongoing">Ongoing</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>

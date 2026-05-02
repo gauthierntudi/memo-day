@@ -49,7 +49,8 @@ import { usePermissions } from "@/hooks/use-permissions";
 export default function ExecutiveSummary() {
   const { projectIds: allowedProjectIds, hasAllProjects } = usePermissions();
   const [period, setPeriod] = useState("weekly");
-  const [selectedProject, setSelectedProject] = useState("all");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -106,8 +107,9 @@ export default function ExecutiveSummary() {
         cursorY += widget.imgHeight + gap;
       }
 
-      const projectName = selectedProject === "all" ? "All-Projects" : (projects?.find(p => p.id === Number(selectedProject))?.name || "Project");
-      const filename = `Executive-Summary-${projectName}-${period}-${new Date().toISOString().split("T")[0]}.pdf`;
+      const clientLabel = clientFilter === "all" ? "AllClients" : clientFilter;
+      const statusLabel = statusFilter === "all" ? "AllStatuses" : statusFilter;
+      const filename = `Executive-Summary-${clientLabel}-${statusLabel}-${period}-${new Date().toISOString().split("T")[0]}.pdf`;
       pdf.save(filename);
       toast({ title: "PDF downloaded successfully" });
     } catch (err) {
@@ -116,7 +118,7 @@ export default function ExecutiveSummary() {
     } finally {
       setGeneratingPdf(false);
     }
-  }, [period, selectedProject, projects, toast]);
+  }, [period, clientFilter, statusFilter, toast]);
 
   if (isLoading) {
     return (
@@ -129,10 +131,20 @@ export default function ExecutiveSummary() {
     );
   }
 
-  const filtered = reports?.filter(r => {
-    if (selectedProject !== "all" && r.projectId !== Number(selectedProject)) return false;
-    return true;
-  }) || [];
+  const matchedProjectIds = new Set(
+    (projects || [])
+      .filter(p => hasAllProjects || allowedProjectIds.includes(p.id))
+      .filter(p => clientFilter === "all" || p.clientType === clientFilter)
+      .filter(p => {
+        if (statusFilter === "all") return true;
+        if (statusFilter === "ongoing") return p.status === "active";
+        if (statusFilter === "completed") return p.status === "completed";
+        return true;
+      })
+      .map(p => p.id)
+  );
+
+  const filtered = reports?.filter(r => matchedProjectIds.has(r.projectId)) || [];
 
   const totalReports = filtered.length;
   const workingDays = filtered.filter(r => r.isWorkingDay).length;
@@ -252,13 +264,25 @@ export default function ExecutiveSummary() {
           <p className="text-sm text-muted-foreground">Comprehensive overview of construction operations</p>
         </div>
         <div className="flex gap-3 flex-wrap items-center">
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-[180px]" data-testid="select-exec-project">
-              <SelectValue placeholder="Project" />
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-[160px]" data-testid="select-exec-client">
+              <SelectValue placeholder="Client" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Projects</SelectItem>
-              {projects?.filter(p => hasAllProjects || allowedProjectIds.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+              <SelectItem value="all">All Clients</SelectItem>
+              <SelectItem value="Own">Own</SelectItem>
+              <SelectItem value="Group">Group</SelectItem>
+              <SelectItem value="Non-group">Non-group</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px]" data-testid="select-exec-status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="ongoing">Ongoing</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={generatePdf} disabled={generatingPdf} data-testid="button-generate-pdf">

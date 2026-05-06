@@ -361,7 +361,11 @@ export default function WeeklyPlanForm() {
                     </SelectContent>
                   </Select>
                   <Input value={a.description} onChange={e => setPlannedActivities(arr => updateArrayItem(arr, i, "description", e.target.value))} placeholder="Description" disabled={!canEdit} />
-                  <Input type="number" min={0} max={100} value={a.targetPercent} onChange={e => setPlannedActivities(arr => updateArrayItem(arr, i, "targetPercent", Number(e.target.value)))} placeholder="%" disabled={!canEdit} />
+                  <Input type="number" min={0} max={100} value={a.targetPercent} onChange={e => {
+                    const n = parseFloat(e.target.value);
+                    const safe = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+                    setPlannedActivities(arr => updateArrayItem(arr, i, "targetPercent", safe));
+                  }} placeholder="%" disabled={!canEdit} data-testid={`input-target-percent-${i}`} />
                   <Select value={a.priority} onValueChange={v => setPlannedActivities(arr => updateArrayItem(arr, i, "priority", v))} disabled={!canEdit}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>

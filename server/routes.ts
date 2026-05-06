@@ -656,7 +656,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/weekly-plans/:id/actual-labour", requireAuth, async (req, res) => {
-    if (!(await requirePermission(req, res, "edit_save_weekly_plan"))) return;
+    if (!(await requirePermission(req, res, "edit_save_daily_report"))) return;
     try {
       const existing = await storage.getWeeklyPlan(Number(req.params.id));
       if (!existing) return res.status(404).json({ message: "Plan not found" });
@@ -686,7 +686,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/weekly-plans/:id/actual-progress", requireAuth, async (req, res) => {
-    if (!(await requirePermission(req, res, "edit_save_weekly_plan"))) return;
+    if (!(await requirePermission(req, res, "edit_save_daily_report"))) return;
     try {
       const existing = await storage.getWeeklyPlan(Number(req.params.id));
       if (!existing) return res.status(404).json({ message: "Plan not found" });

@@ -18,7 +18,7 @@ interface PlannedActivitiesTabProps {
 export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitiesTabProps) {
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
-  const canEdit = hasPermission("edit_save_weekly_plan");
+  const canEdit = hasPermission("edit_save_daily_report");
   const [activities, setActivities] = useState<PlannedActivity[]>([]);
   const [saving, setSaving] = useState(false);
 

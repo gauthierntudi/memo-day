@@ -18,7 +18,7 @@ interface PlannedLabourTabProps {
 export function PlannedLabourTab({ projectId, reportDate }: PlannedLabourTabProps) {
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
-  const canEdit = hasPermission("edit_save_weekly_plan");
+  const canEdit = hasPermission("edit_save_daily_report");
   const [labour, setLabour] = useState<PlannedLabour[]>([]);
   const [saving, setSaving] = useState(false);
 

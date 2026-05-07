@@ -98,6 +98,7 @@ export default function DailyReportForm() {
   const [weatherImpact, setWeatherImpact] = useState("");
   const [activities, setActivities] = useState<WorkActivity[]>([{ ...emptyActivity }]);
   const [labourForce, setLabourForce] = useState<LabourEntry[]>([{ ...emptyLabour }]);
+  const [plannedLabourActualTotal, setPlannedLabourActualTotal] = useState(0);
   const [subcontractors, setSubcontractors] = useState<SubcontractorEntry[]>([]);
   const [safetyIncidents, setSafetyIncidents] = useState<SafetyIncident[]>([]);
   const [securityIncidents, setSecurityIncidents] = useState<SecurityIncident[]>([]);
@@ -539,8 +540,8 @@ export default function DailyReportForm() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="planned-labour" className="space-y-4 mt-4">
-          <PlannedLabourTab projectId={projectId} reportDate={reportDate} />
+        <TabsContent value="planned-labour" forceMount className="space-y-4 mt-4 data-[state=inactive]:hidden">
+          <PlannedLabourTab projectId={projectId} reportDate={reportDate} onActualTotalChange={setPlannedLabourActualTotal} />
         </TabsContent>
 
         <TabsContent value="labour" className="space-y-4 mt-4">
@@ -581,9 +582,19 @@ export default function DailyReportForm() {
                   </div>
                 ))}
                 <Separator />
-                <div className="flex justify-between text-sm font-medium px-1">
-                  <span>Total Workers:</span>
-                  <span>{labourForce.reduce((s, l) => s + l.count, 0)}</span>
+                <div className="space-y-1 px-1 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Additional Labour:</span>
+                    <span data-testid="text-additional-labour-total">{labourForce.reduce((s, l) => s + (l.count || 0), 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Planned Labour (Actual):</span>
+                    <span data-testid="text-planned-labour-actual-total">{plannedLabourActualTotal}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t pt-1">
+                    <span>Total Labour:</span>
+                    <span data-testid="text-total-labour">{labourForce.reduce((s, l) => s + (l.count || 0), 0) + plannedLabourActualTotal}</span>
+                  </div>
                 </div>
               </div>
             </CardContent>

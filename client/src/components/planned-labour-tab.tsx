@@ -13,9 +13,10 @@ import { usePermissions } from "@/hooks/use-permissions";
 interface PlannedLabourTabProps {
   projectId: number;
   reportDate: string;
+  onActualTotalChange?: (total: number) => void;
 }
 
-export function PlannedLabourTab({ projectId, reportDate }: PlannedLabourTabProps) {
+export function PlannedLabourTab({ projectId, reportDate, onActualTotalChange }: PlannedLabourTabProps) {
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const canEdit = hasPermission("edit_save_daily_report");
@@ -72,6 +73,10 @@ export function PlannedLabourTab({ projectId, reportDate }: PlannedLabourTabProp
     const totalActual = labour.reduce((s, l) => s + (l.actualCount || 0), 0);
     return { totalPlanned, totalActual, variance: totalActual - totalPlanned };
   }, [labour]);
+
+  useEffect(() => {
+    onActualTotalChange?.(summary.totalActual);
+  }, [summary.totalActual, onActualTotalChange]);
 
   if (isLoading) {
     return (

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, ClipboardList, Search, Eye } from "lucide-react";
 import { useState } from "react";
-import type { DailyReport, Project } from "@shared/schema";
+import type { DailyReport, Project, WeeklyPlan, PlannedLabour } from "@shared/schema";
 import { usePermissions } from "@/hooks/use-permissions";
 
 export default function DailyReports() {
@@ -28,6 +28,9 @@ export default function DailyReports() {
   });
   const { data: projects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
+  });
+  const { data: weeklyPlans } = useQuery<WeeklyPlan[]>({
+    queryKey: ["/api/weekly-plans"],
   });
 
   const filtered = reports?.filter(r => {
@@ -118,7 +121,15 @@ export default function DailyReports() {
           {filtered.map(report => {
             const project = projects?.find(p => p.id === report.projectId);
             const labour = report.labourForce as any[];
-            const totalWorkers = labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0;
+            const additionalWorkers = labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0;
+            const matchedPlan = weeklyPlans?.find(
+              p => p.projectId === report.projectId && p.weekStartDate <= report.reportDate && p.weekEndDate >= report.reportDate
+            );
+            const plannedActualWorkers = ((matchedPlan?.plannedLabour as PlannedLabour[]) || []).reduce(
+              (s, l) => s + (l.actualCount || 0),
+              0
+            );
+            const totalWorkers = additionalWorkers + plannedActualWorkers;
             const safetyCount = (report.safetyIncidents as any[])?.length || 0;
 
             return (

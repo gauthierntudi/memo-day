@@ -66,6 +66,14 @@ export async function seedDatabase() {
         await db.update(rolePrivileges).set({ permissions: [...existing, ...missing] }).where(eq(rolePrivileges.orgRole, row.orgRole));
       }
     }
+    const existingRoles = new Set(existingPrivileges.map(r => r.orgRole));
+    for (const role of ORG_ROLES) {
+      if (!existingRoles.has(role)) {
+        const permissions = role === "Director" ? [...PERMISSIONS] : [];
+        await db.insert(rolePrivileges).values({ orgRole: role, permissions }).onConflictDoNothing();
+        console.log(`Seeded missing role privileges row for: ${role}`);
+      }
+    }
   }
 
   console.log("Database seeded successfully");

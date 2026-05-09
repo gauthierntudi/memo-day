@@ -28,7 +28,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Save, Send, Plus, Trash2, CalendarRange, Users, Target, Milestone as MilestoneIcon, CheckCircle2, XCircle, Clock, Copy, AlertTriangle } from "lucide-react";
 import type { Project, WeeklyPlan, PlannedActivity, PlannedLabour, PlannedSubcontractor, ProductivityTarget, Milestone } from "@shared/schema";
-import { TRADES, PRIORITY_LEVELS } from "@shared/schema";
+import { TRADES, LABOUR_TRADES, PRIORITY_LEVELS } from "@shared/schema";
 
 const emptyPlannedActivity: PlannedActivity = { trade: "", description: "", targetPercent: 0, priority: "Medium" };
 const emptyPlannedLabour: PlannedLabour = { trade: "", plannedCount: 0 };
@@ -405,7 +405,7 @@ export default function WeeklyPlanForm() {
                   <Select value={l.trade} onValueChange={v => setPlannedLabour(arr => updateArrayItem(arr, i, "trade", v))} disabled={!canEdit}>
                     <SelectTrigger><SelectValue placeholder="Trade" /></SelectTrigger>
                     <SelectContent>
-                      {TRADES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      {LABOUR_TRADES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Input type="number" min={0} value={l.plannedCount} onChange={e => setPlannedLabour(arr => updateArrayItem(arr, i, "plannedCount", Number(e.target.value)))} placeholder="Count" disabled={!canEdit} />

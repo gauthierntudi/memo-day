@@ -56,7 +56,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import type { Project, DailyReport, User, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem, ActivityLogEntry } from "@shared/schema";
-import { TRADES, WEATHER_CONDITIONS, EQUIPMENT_TYPES, EQUIPMENT_STATUS, INCIDENT_TYPES, SEVERITY_LEVELS, SECURITY_INCIDENT_TYPES, CLEANING_STATUS, MATERIAL_UNITS, ACTIVITY_STATUS, INVENTORY_STATUS } from "@shared/schema";
+import { TRADES, LABOUR_TRADES, WEATHER_CONDITIONS, EQUIPMENT_TYPES, EQUIPMENT_STATUS, INCIDENT_TYPES, SEVERITY_LEVELS, SECURITY_INCIDENT_TYPES, CLEANING_STATUS, MATERIAL_UNITS, ACTIVITY_STATUS, INVENTORY_STATUS } from "@shared/schema";
 
 const emptyActivity: WorkActivity = { trade: "", description: "", location: "", percentComplete: 0, status: "In Progress" };
 const emptyLabour: LabourEntry = { trade: "", count: 0, hours: 8 };
@@ -563,7 +563,7 @@ export default function DailyReportForm() {
                       <Label className="text-xs md:hidden">Trade</Label>
                       <Select value={l.trade} onValueChange={v => setLabourForce(a => updateArrayItem(a, i, "trade", v))}>
                         <SelectTrigger data-testid={`select-labour-trade-${i}`}><SelectValue placeholder="Select trade" /></SelectTrigger>
-                        <SelectContent>{TRADES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                        <SelectContent>{LABOUR_TRADES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1 md:space-y-0">

@@ -189,6 +189,44 @@ async function getUserProjectPermissions(userId: string) {
   };
 }
 
+async function syncWeeklyPlanFromReports(projectId: number, reportDate: string) {
+  try {
+    const allPlans = await storage.getWeeklyPlans();
+    const plan = allPlans.find(
+      p => p.projectId === projectId && p.weekStartDate <= reportDate && p.weekEndDate >= reportDate
+    );
+    if (!plan) return;
+    const allReports = await storage.getDailyReports();
+    const weekReports = allReports.filter(
+      r => r.projectId === projectId && r.reportDate >= plan.weekStartDate && r.reportDate <= plan.weekEndDate
+    );
+    const plannedActivities = (plan.plannedActivities as any[]) || [];
+    const updatedActivities = plannedActivities.map((a, i) => {
+      let max = 0;
+      for (const r of weekReports) {
+        const arr = (r.plannedActivitiesActuals as { index: number; actualPercent: number }[]) || [];
+        const found = arr.find(x => x.index === i);
+        if (found && Number.isFinite(found.actualPercent) && found.actualPercent > max) max = found.actualPercent;
+      }
+      return { ...a, actualPercent: max };
+    });
+    const plannedLabour = (plan.plannedLabour as any[]) || [];
+    const sortedReports = [...weekReports].sort((a, b) => a.reportDate.localeCompare(b.reportDate));
+    const latestReport = sortedReports[sortedReports.length - 1];
+    const latestLabourActuals = ((latestReport?.plannedLabourActuals as { index: number; actualCount: number }[]) || []);
+    const updatedLabour = plannedLabour.map((l, i) => {
+      const found = latestLabourActuals.find(x => x.index === i);
+      return found ? { ...l, actualCount: found.actualCount } : { ...l, actualCount: l.actualCount ?? 0 };
+    });
+    await storage.updateWeeklyPlan(plan.id, {
+      plannedActivities: updatedActivities as any,
+      plannedLabour: updatedLabour as any,
+    });
+  } catch (e) {
+    console.error("Failed to sync weekly plan from daily reports:", e);
+  }
+}
+
 async function appendDailyReportLog(reportId: number, action: string, userName: string, details?: string) {
   const report = await storage.getDailyReport(reportId);
   if (!report) return;
@@ -442,6 +480,7 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       const report = await storage.createDailyReport(validated);
       await appendDailyReportLog(report.id, "Created", user?.name || "Unknown");
+      await syncWeeklyPlanFromReports(report.projectId, report.reportDate);
       logEvent(req.session.userId, "Create Daily Report", `Created daily report for ${validated.reportDate}`, "daily_report", String(report.id));
       const final = await storage.getDailyReport(report.id);
       res.status(201).json(final);
@@ -464,6 +503,7 @@ export async function registerRoutes(
       const report = await storage.updateDailyReport(Number(req.params.id), partial);
       if (!report) return res.status(404).json({ message: "Report not found" });
       await appendDailyReportLog(report.id, "Saved", user?.name || "Unknown");
+      await syncWeeklyPlanFromReports(report.projectId, report.reportDate);
       logEvent(req.session.userId, "Update Daily Report", `Updated daily report #${report.id} (${report.reportDate})`, "daily_report", String(report.id));
       const final = await storage.getDailyReport(report.id);
       res.json(final);

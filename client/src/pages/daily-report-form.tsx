@@ -55,7 +55,7 @@ import {
   Camera,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import type { Project, DailyReport, User, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem, ActivityLogEntry } from "@shared/schema";
+import type { Project, DailyReport, User, WorkActivity, LabourEntry, SubcontractorEntry, SafetyIncident, SecurityIncident, EquipmentEntry, MaterialEntry, InventoryItem, ActivityLogEntry, PlannedActivityActual, PlannedLabourActual } from "@shared/schema";
 import { TRADES, LABOUR_TRADES, WEATHER_CONDITIONS, EQUIPMENT_TYPES, EQUIPMENT_STATUS, INCIDENT_TYPES, SEVERITY_LEVELS, SECURITY_INCIDENT_TYPES, CLEANING_STATUS, MATERIAL_UNITS, ACTIVITY_STATUS, INVENTORY_STATUS } from "@shared/schema";
 
 const emptyActivity: WorkActivity = { trade: "", description: "", location: "", percentComplete: 0, status: "In Progress" };
@@ -110,6 +110,8 @@ export default function DailyReportForm() {
   const [inventoryStatus, setInventoryStatus] = useState<InventoryItem[]>([]);
   const [reportPhotos, setReportPhotos] = useState<string[]>([]);
   const [comments, setComments] = useState("");
+  const [plannedActivitiesActuals, setPlannedActivitiesActuals] = useState<PlannedActivityActual[]>([]);
+  const [plannedLabourActuals, setPlannedLabourActuals] = useState<PlannedLabourActual[]>([]);
 
   const projectUsers = (allUsers || []).filter(u => {
     if (!u.isActive) return false;
@@ -146,6 +148,8 @@ export default function DailyReportForm() {
 
       setReportPhotos((existing.photos as string[]) || []);
       setComments(existing.comments || "");
+      setPlannedActivitiesActuals((existing.plannedActivitiesActuals as PlannedActivityActual[]) || []);
+      setPlannedLabourActuals((existing.plannedLabourActuals as PlannedLabourActual[]) || []);
     }
   }, [existing]);
 
@@ -177,6 +181,8 @@ export default function DailyReportForm() {
         overallProgress: 0,
         photos: reportPhotos,
         comments: comments || null,
+        plannedActivitiesActuals,
+        plannedLabourActuals,
         status,
       };
 
@@ -481,7 +487,13 @@ export default function DailyReportForm() {
         </TabsContent>
 
         <TabsContent value="planned-activities" className="space-y-4 mt-4">
-          <PlannedActivitiesTab projectId={projectId} reportDate={reportDate} />
+          <PlannedActivitiesTab
+            projectId={projectId}
+            reportDate={reportDate}
+            currentReportId={isEdit ? Number(params.id) : undefined}
+            value={plannedActivitiesActuals}
+            onChange={setPlannedActivitiesActuals}
+          />
         </TabsContent>
 
         <TabsContent value="activities" className="space-y-4 mt-4">
@@ -541,7 +553,14 @@ export default function DailyReportForm() {
         </TabsContent>
 
         <TabsContent value="planned-labour" forceMount className="space-y-4 mt-4 data-[state=inactive]:hidden">
-          <PlannedLabourTab projectId={projectId} reportDate={reportDate} onActualTotalChange={setPlannedLabourActualTotal} />
+          <PlannedLabourTab
+            projectId={projectId}
+            reportDate={reportDate}
+            currentReportId={isEdit ? Number(params.id) : undefined}
+            value={plannedLabourActuals}
+            onChange={setPlannedLabourActuals}
+            onActualTotalChange={setPlannedLabourActualTotal}
+          />
         </TabsContent>
 
         <TabsContent value="labour" className="space-y-4 mt-4">

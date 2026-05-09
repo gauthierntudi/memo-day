@@ -114,8 +114,20 @@ export const dailyReports = pgTable("daily_reports", {
   approvedAt: timestamp("approved_at"),
   rejectionReason: text("rejection_reason"),
   activityLog: jsonb("activity_log").notNull().default(sql`'[]'::jsonb`),
+  plannedActivitiesActuals: jsonb("planned_activities_actuals").notNull().default(sql`'[]'::jsonb`),
+  plannedLabourActuals: jsonb("planned_labour_actuals").notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export interface PlannedActivityActual {
+  index: number;
+  actualPercent: number;
+}
+
+export interface PlannedLabourActual {
+  index: number;
+  actualCount: number;
+}
 
 export interface ActivityLogEntry {
   action: string;

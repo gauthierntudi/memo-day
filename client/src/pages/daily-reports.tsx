@@ -122,10 +122,7 @@ export default function DailyReports() {
             const project = projects?.find(p => p.id === report.projectId);
             const labour = report.labourForce as any[];
             const additionalWorkers = labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0;
-            const matchedPlan = weeklyPlans?.find(
-              p => p.projectId === report.projectId && p.weekStartDate <= report.reportDate && p.weekEndDate >= report.reportDate
-            );
-            const plannedActualWorkers = ((matchedPlan?.plannedLabour as PlannedLabour[]) || []).reduce(
+            const plannedActualWorkers = ((report.plannedLabourActuals as { index: number; actualCount: number }[]) || []).reduce(
               (s, l) => s + (l.actualCount || 0),
               0
             );

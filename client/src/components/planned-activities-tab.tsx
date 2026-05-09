@@ -1,28 +1,23 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Target, Save, Info } from "lucide-react";
-import type { WeeklyPlan, PlannedActivity, DailyReport } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { Target, Info } from "lucide-react";
+import type { WeeklyPlan, PlannedActivity, DailyReport, PlannedActivityActual } from "@shared/schema";
 import { usePermissions } from "@/hooks/use-permissions";
 
 interface PlannedActivitiesTabProps {
   projectId: number;
   reportDate: string;
+  currentReportId?: number;
+  value: PlannedActivityActual[];
+  onChange: (v: PlannedActivityActual[]) => void;
 }
 
-export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitiesTabProps) {
+export function PlannedActivitiesTab({ projectId, reportDate, currentReportId, value, onChange }: PlannedActivitiesTabProps) {
   const { hasPermission } = usePermissions();
-  const { toast } = useToast();
   const canEdit = hasPermission("edit_save_daily_report");
-  const [activities, setActivities] = useState<PlannedActivity[]>([]);
-  const [floors, setFloors] = useState<number[]>([]);
-  const [hasPriorInWeek, setHasPriorInWeek] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const { data: plans, isLoading } = useQuery<WeeklyPlan[]>({ queryKey: ["/api/weekly-plans"] });
   const { data: reports } = useQuery<DailyReport[]>({ queryKey: ["/api/daily-reports"] });
@@ -34,67 +29,91 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
     );
   }, [plans, projectId, reportDate]);
 
-  const priorReportInWeek = useMemo(() => {
-    if (!reports || !matchedPlan || !reportDate) return false;
+  const activities = useMemo<PlannedActivity[]>(() => {
+    if (!matchedPlan) return [];
+    return (matchedPlan.plannedActivities as PlannedActivity[]) || [];
+  }, [matchedPlan]);
+
+  // Floor per activity index = max actualPercent across PRIOR daily reports for same project+week (excluding self)
+  const floors = useMemo<number[]>(() => {
+    if (!matchedPlan || !reports || activities.length === 0) return activities.map(() => 0);
+    const prior = reports.filter(
+      r =>
+        r.projectId === projectId &&
+        r.reportDate >= matchedPlan.weekStartDate &&
+        r.reportDate < reportDate &&
+        r.id !== currentReportId
+    );
+    return activities.map((_, i) => {
+      let max = 0;
+      for (const r of prior) {
+        const arr = (r.plannedActivitiesActuals as PlannedActivityActual[]) || [];
+        const found = arr.find(a => a.index === i);
+        if (found && Number.isFinite(found.actualPercent) && found.actualPercent > max) {
+          max = found.actualPercent;
+        }
+      }
+      return max;
+    });
+  }, [matchedPlan, reports, activities, projectId, reportDate, currentReportId]);
+
+  const hasPriorInWeek = useMemo(() => {
+    if (!matchedPlan || !reports) return false;
     return reports.some(
       r =>
         r.projectId === projectId &&
         r.reportDate >= matchedPlan.weekStartDate &&
-        r.reportDate < reportDate
+        r.reportDate < reportDate &&
+        r.id !== currentReportId
     );
-  }, [reports, matchedPlan, projectId, reportDate]);
+  }, [reports, matchedPlan, projectId, reportDate, currentReportId]);
 
+  const valueByIndex = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const v of value || []) m.set(v.index, v.actualPercent);
+    return m;
+  }, [value]);
+
+  // Initialize snapshot when activities/floors change. For new reports, reseed
+  // when plan context changes (project/date) to drop stale values from a prior plan.
+  // For edit mode, only seed when the snapshot is empty (preserve persisted values).
+  const initKeyRef = useRef<string>("");
   useEffect(() => {
-    if (matchedPlan) {
-      const planActivities = (matchedPlan.plannedActivities as PlannedActivity[]) || [];
-      const initial = planActivities.map(a => ({ ...a, actualPercent: a.actualPercent ?? 0 }));
-      setActivities(initial);
-      setHasPriorInWeek(priorReportInWeek);
-      setFloors(initial.map(a => (priorReportInWeek ? Number(a.actualPercent) || 0 : 0)));
-    } else {
-      setActivities([]);
-      setFloors([]);
-      setHasPriorInWeek(false);
+    if (!matchedPlan || activities.length === 0) return;
+    const key = `${matchedPlan.id}|${activities.length}|${currentReportId ?? "new"}`;
+    if (initKeyRef.current === key) return;
+    initKeyRef.current = key;
+    const isNew = currentReportId === undefined;
+    if (isNew || (value || []).length === 0) {
+      const seeded = activities.map((_, i) => ({ index: i, actualPercent: floors[i] ?? 0 }));
+      onChange(seeded);
     }
-  }, [matchedPlan, priorReportInWeek]);
+  }, [matchedPlan, activities, floors, currentReportId, value, onChange]);
 
   const updateActual = (i: number, raw: string) => {
     const trimmed = raw.trim();
     const parsed = trimmed === "" ? 0 : parseFloat(trimmed);
     const floor = floors[i] ?? 0;
     const safe = Number.isFinite(parsed) ? Math.max(floor, Math.min(100, parsed)) : floor;
-    setActivities(arr => arr.map((a, idx) => (idx === i ? { ...a, actualPercent: safe } : a)));
-  };
-
-  const handleSave = async () => {
-    if (!matchedPlan) return;
-    setSaving(true);
-    try {
-      const actuals = activities.map((a, index) => {
-        const floor = floors[index] ?? 0;
-        const n = Number(a.actualPercent);
-        return {
-          index,
-          actualPercent: Number.isFinite(n) ? Math.max(floor, Math.min(100, n)) : floor,
-        };
-      });
-      await apiRequest("POST", `/api/weekly-plans/${matchedPlan.id}/actual-progress`, { actuals });
-      await queryClient.invalidateQueries({ queryKey: ["/api/weekly-plans"] });
-      toast({ title: "Actual progress saved" });
-    } catch (err: any) {
-      const msg = err?.message?.replace(/^\d+:\s*/, "").replace(/[{}"]/g, "").replace(/message:/, "").trim();
-      toast({ title: "Failed to save", description: msg || "Please try again", variant: "destructive" });
-    } finally {
-      setSaving(false);
+    const existing = value || [];
+    const idx = existing.findIndex(v => v.index === i);
+    let next: PlannedActivityActual[];
+    if (idx >= 0) {
+      next = existing.map((v, k) => (k === idx ? { index: i, actualPercent: safe } : v));
+    } else {
+      next = [...existing, { index: i, actualPercent: safe }];
     }
+    onChange(next);
   };
 
   const summary = useMemo(() => {
     if (activities.length === 0) return { avgTarget: 0, avgActual: 0, variance: 0 };
     const avgTarget = Math.round(activities.reduce((s, a) => s + (a.targetPercent || 0), 0) / activities.length);
-    const avgActual = Math.round(activities.reduce((s, a) => s + (a.actualPercent || 0), 0) / activities.length);
+    const avgActual = Math.round(
+      activities.reduce((s, _a, i) => s + (valueByIndex.get(i) ?? floors[i] ?? 0), 0) / activities.length
+    );
     return { avgTarget, avgActual, variance: avgActual - avgTarget };
-  }, [activities]);
+  }, [activities, valueByIndex, floors]);
 
   if (isLoading) {
     return (
@@ -161,21 +180,16 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
       </Card>
 
       <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Target className="h-4 w-4" /> Planned Activities ({activities.length})
           </CardTitle>
-          {canEdit && activities.length > 0 && (
-            <Button size="sm" onClick={handleSave} disabled={saving} data-testid="button-save-actuals">
-              <Save className="mr-2 h-4 w-4" /> {saving ? "Saving..." : "Save Progress"}
-            </Button>
-          )}
         </CardHeader>
         {hasPriorInWeek && activities.length > 0 && (
           <div className="px-6 -mt-2 pb-2">
             <p className="text-xs text-muted-foreground flex items-start gap-2" data-testid="pa-prior-day-notice">
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              Actuals are pre-filled from the previous day's report and can only be increased (progress cannot go backwards within the week).
+              Actuals are pre-filled from the previous day's report and can only be increased (progress cannot go backwards within the week). Values are saved with this daily report only — earlier days remain unchanged.
             </p>
           </div>
         )}
@@ -192,7 +206,8 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
                 <span>Actual %</span>
               </div>
               {activities.map((a, i) => {
-                const variance = (a.actualPercent ?? 0) - (a.targetPercent || 0);
+                const actual = valueByIndex.get(i) ?? floors[i] ?? 0;
+                const variance = actual - (a.targetPercent || 0);
                 return (
                   <div
                     key={i}
@@ -218,7 +233,7 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
                         type="number"
                         min={floors[i] ?? 0}
                         max={100}
-                        value={a.actualPercent ?? 0}
+                        value={actual}
                         onChange={e => updateActual(i, e.target.value)}
                         disabled={!canEdit}
                         className="h-8"

@@ -1,27 +1,24 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Users, Save, Info } from "lucide-react";
-import type { WeeklyPlan, PlannedLabour } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { Users, Info } from "lucide-react";
+import type { WeeklyPlan, PlannedLabour, PlannedLabourActual } from "@shared/schema";
 import { usePermissions } from "@/hooks/use-permissions";
 
 interface PlannedLabourTabProps {
   projectId: number;
   reportDate: string;
+  currentReportId?: number;
+  value: PlannedLabourActual[];
+  onChange: (v: PlannedLabourActual[]) => void;
   onActualTotalChange?: (total: number) => void;
 }
 
-export function PlannedLabourTab({ projectId, reportDate, onActualTotalChange }: PlannedLabourTabProps) {
+export function PlannedLabourTab({ projectId, reportDate, currentReportId, value, onChange, onActualTotalChange }: PlannedLabourTabProps) {
   const { hasPermission } = usePermissions();
-  const { toast } = useToast();
   const canEdit = hasPermission("edit_save_daily_report");
-  const [labour, setLabour] = useState<PlannedLabour[]>([]);
-  const [saving, setSaving] = useState(false);
 
   const { data: plans, isLoading } = useQuery<WeeklyPlan[]>({ queryKey: ["/api/weekly-plans"] });
 
@@ -32,47 +29,54 @@ export function PlannedLabourTab({ projectId, reportDate, onActualTotalChange }:
     );
   }, [plans, projectId, reportDate]);
 
-  useEffect(() => {
-    if (matchedPlan) {
-      const planLabour = (matchedPlan.plannedLabour as PlannedLabour[]) || [];
-      setLabour(planLabour.map(l => ({ ...l, actualCount: l.actualCount ?? 0 })));
-    } else {
-      setLabour([]);
-    }
+  const labour = useMemo<PlannedLabour[]>(() => {
+    if (!matchedPlan) return [];
+    return (matchedPlan.plannedLabour as PlannedLabour[]) || [];
   }, [matchedPlan]);
+
+  const valueByIndex = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const v of value || []) m.set(v.index, v.actualCount);
+    return m;
+  }, [value]);
+
+  // Initialize snapshot when labour changes. For new reports, reseed when plan
+  // context changes (project/date) to drop stale values from a prior plan.
+  // For edit mode, only seed when the snapshot is empty (preserve persisted values).
+  const initKeyRef = useRef<string>("");
+  useEffect(() => {
+    if (!matchedPlan || labour.length === 0) return;
+    const key = `${matchedPlan.id}|${labour.length}|${currentReportId ?? "new"}`;
+    if (initKeyRef.current === key) return;
+    initKeyRef.current = key;
+    const isNew = currentReportId === undefined;
+    if (isNew || (value || []).length === 0) {
+      const seeded = labour.map((_, i) => ({ index: i, actualCount: 0 }));
+      onChange(seeded);
+    }
+  }, [matchedPlan, labour, currentReportId, value, onChange]);
 
   const updateActual = (i: number, raw: string) => {
     const trimmed = raw.trim();
     const parsed = trimmed === "" ? 0 : parseFloat(trimmed);
     const safe = Number.isFinite(parsed) ? Math.max(0, Math.min(100000, parsed)) : 0;
-    setLabour(arr => arr.map((l, idx) => (idx === i ? { ...l, actualCount: safe } : l)));
-  };
-
-  const handleSave = async () => {
-    if (!matchedPlan) return;
-    setSaving(true);
-    try {
-      const actuals = labour.map((l, index) => ({
-        index,
-        actualCount: Number.isFinite(l.actualCount) ? Math.max(0, Math.min(100000, Number(l.actualCount))) : 0,
-      }));
-      await apiRequest("POST", `/api/weekly-plans/${matchedPlan.id}/actual-labour`, { actuals });
-      await queryClient.invalidateQueries({ queryKey: ["/api/weekly-plans"] });
-      toast({ title: "Actual labour saved" });
-    } catch (err: any) {
-      const msg = err?.message?.replace(/^\d+:\s*/, "").replace(/[{}"]/g, "").replace(/message:/, "").trim();
-      toast({ title: "Failed to save", description: msg || "Please try again", variant: "destructive" });
-    } finally {
-      setSaving(false);
+    const existing = value || [];
+    const idx = existing.findIndex(v => v.index === i);
+    let next: PlannedLabourActual[];
+    if (idx >= 0) {
+      next = existing.map((v, k) => (k === idx ? { index: i, actualCount: safe } : v));
+    } else {
+      next = [...existing, { index: i, actualCount: safe }];
     }
+    onChange(next);
   };
 
   const summary = useMemo(() => {
     if (labour.length === 0) return { totalPlanned: 0, totalActual: 0, variance: 0 };
     const totalPlanned = labour.reduce((s, l) => s + (l.plannedCount || 0), 0);
-    const totalActual = labour.reduce((s, l) => s + (l.actualCount || 0), 0);
+    const totalActual = labour.reduce((s, _l, i) => s + (valueByIndex.get(i) ?? 0), 0);
     return { totalPlanned, totalActual, variance: totalActual - totalPlanned };
-  }, [labour]);
+  }, [labour, valueByIndex]);
 
   useEffect(() => {
     onActualTotalChange?.(summary.totalActual);
@@ -143,15 +147,10 @@ export function PlannedLabourTab({ projectId, reportDate, onActualTotalChange }:
       </Card>
 
       <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-4 w-4" /> Planned Labour ({labour.length})
           </CardTitle>
-          {canEdit && labour.length > 0 && (
-            <Button size="sm" onClick={handleSave} disabled={saving} data-testid="button-save-actual-labour">
-              <Save className="mr-2 h-4 w-4" /> {saving ? "Saving..." : "Save Actuals"}
-            </Button>
-          )}
         </CardHeader>
         <CardContent>
           {labour.length === 0 ? (
@@ -165,7 +164,8 @@ export function PlannedLabourTab({ projectId, reportDate, onActualTotalChange }:
                 <span>Variance</span>
               </div>
               {labour.map((l, i) => {
-                const variance = (l.actualCount ?? 0) - (l.plannedCount || 0);
+                const actual = valueByIndex.get(i) ?? 0;
+                const variance = actual - (l.plannedCount || 0);
                 return (
                   <div
                     key={i}
@@ -180,7 +180,7 @@ export function PlannedLabourTab({ projectId, reportDate, onActualTotalChange }:
                       <Input
                         type="number"
                         min={0}
-                        value={l.actualCount ?? 0}
+                        value={actual}
                         onChange={e => updateActual(i, e.target.value)}
                         disabled={!canEdit}
                         className="h-8"

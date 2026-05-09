@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Target, Save, Info } from "lucide-react";
-import type { WeeklyPlan, PlannedActivity } from "@shared/schema";
+import type { WeeklyPlan, PlannedActivity, DailyReport } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -20,9 +20,12 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
   const { toast } = useToast();
   const canEdit = hasPermission("edit_save_daily_report");
   const [activities, setActivities] = useState<PlannedActivity[]>([]);
+  const [floors, setFloors] = useState<number[]>([]);
+  const [hasPriorInWeek, setHasPriorInWeek] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const { data: plans, isLoading } = useQuery<WeeklyPlan[]>({ queryKey: ["/api/weekly-plans"] });
+  const { data: reports } = useQuery<DailyReport[]>({ queryKey: ["/api/daily-reports"] });
 
   const matchedPlan = useMemo(() => {
     if (!plans || !projectId || !reportDate) return undefined;
@@ -31,19 +34,35 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
     );
   }, [plans, projectId, reportDate]);
 
+  const priorReportInWeek = useMemo(() => {
+    if (!reports || !matchedPlan || !reportDate) return false;
+    return reports.some(
+      r =>
+        r.projectId === projectId &&
+        r.reportDate >= matchedPlan.weekStartDate &&
+        r.reportDate < reportDate
+    );
+  }, [reports, matchedPlan, projectId, reportDate]);
+
   useEffect(() => {
     if (matchedPlan) {
       const planActivities = (matchedPlan.plannedActivities as PlannedActivity[]) || [];
-      setActivities(planActivities.map(a => ({ ...a, actualPercent: a.actualPercent ?? 0 })));
+      const initial = planActivities.map(a => ({ ...a, actualPercent: a.actualPercent ?? 0 }));
+      setActivities(initial);
+      setHasPriorInWeek(priorReportInWeek);
+      setFloors(initial.map(a => (priorReportInWeek ? Number(a.actualPercent) || 0 : 0)));
     } else {
       setActivities([]);
+      setFloors([]);
+      setHasPriorInWeek(false);
     }
-  }, [matchedPlan]);
+  }, [matchedPlan, priorReportInWeek]);
 
   const updateActual = (i: number, raw: string) => {
     const trimmed = raw.trim();
     const parsed = trimmed === "" ? 0 : parseFloat(trimmed);
-    const safe = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 0;
+    const floor = floors[i] ?? 0;
+    const safe = Number.isFinite(parsed) ? Math.max(floor, Math.min(100, parsed)) : floor;
     setActivities(arr => arr.map((a, idx) => (idx === i ? { ...a, actualPercent: safe } : a)));
   };
 
@@ -51,10 +70,14 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
     if (!matchedPlan) return;
     setSaving(true);
     try {
-      const actuals = activities.map((a, index) => ({
-        index,
-        actualPercent: Number.isFinite(a.actualPercent) ? Math.max(0, Math.min(100, Number(a.actualPercent))) : 0,
-      }));
+      const actuals = activities.map((a, index) => {
+        const floor = floors[index] ?? 0;
+        const n = Number(a.actualPercent);
+        return {
+          index,
+          actualPercent: Number.isFinite(n) ? Math.max(floor, Math.min(100, n)) : floor,
+        };
+      });
       await apiRequest("POST", `/api/weekly-plans/${matchedPlan.id}/actual-progress`, { actuals });
       await queryClient.invalidateQueries({ queryKey: ["/api/weekly-plans"] });
       toast({ title: "Actual progress saved" });
@@ -148,6 +171,14 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
             </Button>
           )}
         </CardHeader>
+        {hasPriorInWeek && activities.length > 0 && (
+          <div className="px-6 -mt-2 pb-2">
+            <p className="text-xs text-muted-foreground flex items-start gap-2" data-testid="pa-prior-day-notice">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              Actuals are pre-filled from the previous day's report and can only be increased (progress cannot go backwards within the week).
+            </p>
+          </div>
+        )}
         <CardContent>
           {activities.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No planned activities for this week</p>
@@ -185,13 +216,14 @@ export function PlannedActivitiesTab({ projectId, reportDate }: PlannedActivitie
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
-                        min={0}
+                        min={floors[i] ?? 0}
                         max={100}
                         value={a.actualPercent ?? 0}
                         onChange={e => updateActual(i, e.target.value)}
                         disabled={!canEdit}
                         className="h-8"
                         data-testid={`pa-input-actual-${i}`}
+                        title={hasPriorInWeek ? `Cannot be less than previous day's value (${floors[i] ?? 0}%)` : undefined}
                       />
                       <span
                         className={`text-xs shrink-0 w-10 text-right ${variance < 0 ? "text-destructive" : variance > 0 ? "text-chart-4" : "text-muted-foreground"}`}

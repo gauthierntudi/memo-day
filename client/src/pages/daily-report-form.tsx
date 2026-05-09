@@ -287,7 +287,7 @@ export default function DailyReportForm() {
               )}
               {!isEdit && (
                 <Button onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending} data-testid="button-submit-report">
-                  <Save className="mr-2 h-4 w-4" /> Submit Report
+                  <Save className="mr-2 h-4 w-4" /> Create Report
                 </Button>
               )}
             </>

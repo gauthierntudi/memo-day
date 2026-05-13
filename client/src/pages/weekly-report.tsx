@@ -37,7 +37,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import type { DailyReport, Project, WeeklyPlan } from "@shared/schema";
+import type { DailyReport, Project, WeeklyPlan, PlannedActivity, PlannedLabour, PlannedActivityActual, PlannedLabourActual } from "@shared/schema";
 import { usePermissions } from "@/hooks/use-permissions";
 
 const CHART_COLORS = [
@@ -86,8 +86,8 @@ export default function WeeklyReport() {
   const filteredReports = approvedReports.filter(r => {
     if (selectedProject !== "all" && r.projectId !== Number(selectedProject)) return false;
     if (matchedPlan) {
-      return r.reportDate >= matchedPlan.weekStartDate && r.reportDate <= matchedPlan.weekEndDate
-        && (selectedProject === "all" || r.projectId === matchedPlan.projectId);
+      if (r.projectId !== matchedPlan.projectId) return false;
+      return r.reportDate >= matchedPlan.weekStartDate && r.reportDate <= matchedPlan.weekEndDate;
     }
     return true;
   });
@@ -95,11 +95,30 @@ export default function WeeklyReport() {
   const missingPlan = !matchedPlan && (selectedProject !== "all" || selectedWeek === "last_completed");
   const missingReports = filteredReports.length === 0 && (matchedPlan || selectedProject !== "all");
 
+  const planForReport = (r: DailyReport): WeeklyPlan | undefined => {
+    if (matchedPlan && r.projectId === matchedPlan.projectId
+      && r.reportDate >= matchedPlan.weekStartDate && r.reportDate <= matchedPlan.weekEndDate) {
+      return matchedPlan;
+    }
+    return approvedPlans.find(p => p.projectId === r.projectId && r.reportDate >= p.weekStartDate && r.reportDate <= p.weekEndDate);
+  };
+
+  const dedupeByIndex = <T extends { index: number }>(arr: T[] | null | undefined): T[] => {
+    const m = new Map<number, T>();
+    (arr || []).forEach(x => { if (Number.isInteger(x?.index)) m.set(x.index, x); });
+    return Array.from(m.values());
+  };
+
+  const workersForReport = (r: DailyReport): number => {
+    const additional = (r.labourForce as any[])?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0;
+    const planned = dedupeByIndex(r.plannedLabourActuals as PlannedLabourActual[]).reduce((s, l) => s + (l.actualCount || 0), 0);
+    return additional + planned;
+  };
+
   const totalWorkers = (() => {
     const byProject = new Map<number, { total: number; count: number }>();
     for (const r of filteredReports) {
-      const labour = r.labourForce as any[];
-      const workers = labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0;
+      const workers = workersForReport(r);
       const entry = byProject.get(r.projectId) || { total: 0, count: 0 };
       entry.total += workers;
       entry.count += 1;
@@ -123,6 +142,9 @@ export default function WeeklyReport() {
   const areaOfFocus = (() => {
     const tradeStats = new Map<string, { totalProgress: number; progressCount: number; totalWorkers: number }>();
     for (const r of filteredReports) {
+      const plan = planForReport(r);
+      const planActivities = (plan?.plannedActivities as PlannedActivity[]) || [];
+      const planLabour = (plan?.plannedLabour as PlannedLabour[]) || [];
       const acts = r.workActivities as any[];
       acts?.forEach((a: any) => {
         if (!a.trade) return;
@@ -131,12 +153,27 @@ export default function WeeklyReport() {
         entry.progressCount += 1;
         tradeStats.set(a.trade, entry);
       });
+      dedupeByIndex(r.plannedActivitiesActuals as PlannedActivityActual[]).forEach(pa => {
+        const planAct = planActivities[pa.index];
+        if (!planAct?.trade) return;
+        const entry = tradeStats.get(planAct.trade) || { totalProgress: 0, progressCount: 0, totalWorkers: 0 };
+        entry.totalProgress += (pa.actualPercent || 0);
+        entry.progressCount += 1;
+        tradeStats.set(planAct.trade, entry);
+      });
       const labour = r.labourForce as any[];
       labour?.forEach((l: any) => {
         if (!l.trade) return;
         const entry = tradeStats.get(l.trade) || { totalProgress: 0, progressCount: 0, totalWorkers: 0 };
         entry.totalWorkers += (l.count || 0);
         tradeStats.set(l.trade, entry);
+      });
+      dedupeByIndex(r.plannedLabourActuals as PlannedLabourActual[]).forEach(pl => {
+        const planLab = planLabour[pl.index];
+        if (!planLab?.trade) return;
+        const entry = tradeStats.get(planLab.trade) || { totalProgress: 0, progressCount: 0, totalWorkers: 0 };
+        entry.totalWorkers += (pl.actualCount || 0);
+        tradeStats.set(planLab.trade, entry);
       });
     }
     let bestTrade = "";
@@ -164,6 +201,12 @@ export default function WeeklyReport() {
     labour?.forEach((l: any) => {
       if (l.trade) labourByTrade[l.trade] = (labourByTrade[l.trade] || 0) + l.count;
     });
+    const plan = planForReport(r);
+    const planLabour = (plan?.plannedLabour as PlannedLabour[]) || [];
+    dedupeByIndex(r.plannedLabourActuals as PlannedLabourActual[]).forEach(pl => {
+      const planLab = planLabour[pl.index];
+      if (planLab?.trade) labourByTrade[planLab.trade] = (labourByTrade[planLab.trade] || 0) + (pl.actualCount || 0);
+    });
   });
 
   const labourChartData = Object.entries(labourByTrade)
@@ -190,6 +233,24 @@ export default function WeeklyReport() {
     planned: pl.plannedCount || 0,
     actual: Math.round(((labourByTrade[pl.trade] || 0) / reportDays) * 100) / 100,
   }));
+
+  const plannedActivities = (matchedPlan?.plannedActivities as PlannedActivity[]) || [];
+  const activityComparisonData = plannedActivities.map((pa, i) => {
+    let maxActual = 0;
+    for (const r of filteredReports) {
+      const arr = dedupeByIndex(r.plannedActivitiesActuals as PlannedActivityActual[]);
+      const found = arr.find(x => x.index === i);
+      if (found && Number.isFinite(found.actualPercent) && found.actualPercent > maxActual) {
+        maxActual = found.actualPercent;
+      }
+    }
+    const label = pa.description || pa.trade || `Activity ${i + 1}`;
+    return {
+      label: label.length > 18 ? label.substring(0, 18) + "..." : label,
+      target: pa.targetPercent || 0,
+      actual: maxActual,
+    };
+  });
 
   return (
     <div className="p-6 space-y-6" data-testid="weekly-report-page">
@@ -408,6 +469,33 @@ export default function WeeklyReport() {
         </Card>
       )}
 
+      {matchedPlan && activityComparisonData.length > 0 && (
+        <Card data-testid="card-activity-comparison">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Planned Activities — Target vs Actual %</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={activityComparisonData} margin={{ top: 5, right: 10, left: 0, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" />
+                <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                  }}
+                />
+                <Bar dataKey="target" fill="hsl(var(--chart-2))" name="Target %" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="actual" fill="hsl(var(--primary))" name="Actual %" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Daily Reports Summary</CardTitle>
@@ -419,8 +507,7 @@ export default function WeeklyReport() {
             <div className="space-y-3">
               {[...filteredReports].reverse().map(report => {
                 const project = projects?.find(p => p.id === report.projectId);
-                const labour = report.labourForce as any[];
-                const workers = labour?.reduce((s: number, l: any) => s + (l.count || 0), 0) || 0;
+                const workers = workersForReport(report);
                 const incidents = (report.safetyIncidents as any[])?.length || 0;
 
                 return (

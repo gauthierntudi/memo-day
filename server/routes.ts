@@ -92,6 +92,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
+  skip: () => process.env.NODE_ENV !== "production",
 });
 
 const apiLimiter = rateLimit({
@@ -276,7 +277,7 @@ export async function registerRoutes(
               resized = await sharp(raw).resize({ width, withoutEnlargement: true }).jpeg({ quality: Math.max(quality, 30) }).toBuffer();
             }
           }
-          finalBuf = resized;
+          finalBuf = Buffer.from(resized);
           mime = "image/jpeg";
         } catch {}
       }
@@ -440,7 +441,7 @@ export async function registerRoutes(
     const proj = await storage.getProject(Number(req.params.id));
     const deleted = await storage.deleteProject(Number(req.params.id));
     if (!deleted) return res.status(404).json({ message: "Project not found" });
-    logEvent(req.session.userId, "Delete Project", `Deleted project "${proj?.name || req.params.id}"`, "project", req.params.id);
+    logEvent(req.session.userId, "Delete Project", `Deleted project "${proj?.name || req.params.id}"`, "project", String(req.params.id));
     res.json({ message: "Project deleted" });
   });
 

@@ -14,6 +14,7 @@ import {
   Activity,
   ScrollText,
 } from "lucide-react";
+import { APP_NAME } from "@/lib/branding";
 import {
   Sidebar,
   SidebarContent,
@@ -145,7 +146,7 @@ export function AppSidebar() {
             <Building2 className="h-4 w-4 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold tracking-tight">MEM - DAY ON SITE</h2>
+            <h2 className="text-sm font-semibold tracking-tight">{APP_NAME}</h2>
             <p className="text-xs text-muted-foreground">Construction Reports</p>
           </div>
         </div>
@@ -234,7 +235,7 @@ export function AppSidebar() {
           </div>
         )}
         <p className="text-xs text-muted-foreground text-center">
-          MEM - DAY ON SITE v1.0
+          {APP_NAME} v1.0
         </p>
       </SidebarFooter>
       <ChangePasswordDialog open={showChangePassword} onOpenChange={setShowChangePassword} />

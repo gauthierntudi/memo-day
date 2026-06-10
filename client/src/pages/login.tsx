@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/use-auth";
 import { HardHat, Lock, Mail, AlertCircle, ArrowLeft } from "lucide-react";
+import { APP_NAME } from "@/lib/branding";
 
 interface LoginPageProps {
   onBack?: () => void;
@@ -31,7 +32,7 @@ export default function LoginPage({ onBack }: LoginPageProps) {
               <HardHat className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold" data-testid="heading-login">MEM - DAY ON SITE</CardTitle>
+          <CardTitle className="text-2xl font-bold" data-testid="heading-login">{APP_NAME}</CardTitle>
           <CardDescription>Construction Daily Report System</CardDescription>
         </CardHeader>
         <CardContent>

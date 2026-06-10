@@ -14,6 +14,7 @@ import {
   ArrowRight,
   CheckCircle2,
 } from "lucide-react";
+import { APP_NAME, COMPANY_NAME } from "@/lib/branding";
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -29,7 +30,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-base font-bold leading-tight">MEM - DAY ON SITE</h1>
+              <h1 className="text-base font-bold leading-tight">{APP_NAME}</h1>
               <p className="text-[11px] text-muted-foreground leading-tight">Construction Daily Report System</p>
             </div>
           </div>
@@ -174,7 +175,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           <h3 className="text-2xl font-bold text-center mb-3" data-testid="heading-about-us">About Us</h3>
           <div className="space-y-4 text-muted-foreground leading-relaxed">
             <p>
-              <strong className="text-foreground">MEM - DAY ON SITE</strong> is developed by MEM. With operations spanning multiple sites and jurisdictions, MEM recognized the need for a centralized, digital solution to replace fragmented paper-based reporting and bring structure, accountability, and data-driven insight to daily site management.
+              <strong className="text-foreground">{APP_NAME}</strong> is developed by {COMPANY_NAME}. With operations spanning multiple sites and jurisdictions, {COMPANY_NAME} recognized the need for a centralized, digital solution to replace fragmented paper-based reporting and bring structure, accountability, and data-driven insight to daily site management.
             </p>
             <p>
               This platform was built from the ground up to address the real challenges faced by construction teams every day — from site engineers documenting daily progress to project managers reviewing submissions, and executive leadership tracking performance across the portfolio.
@@ -183,7 +184,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               Our mission is to empower construction professionals with tools that make reporting effortless, approvals transparent, and performance analysis automatic. By digitizing the daily reporting workflow, we help teams reduce administrative overhead, improve safety compliance, and make better-informed decisions at every level of the organization.
             </p>
             <p>
-              Whether you manage a single project or a portfolio of sites, MEM - DAY ON SITE provides the visibility and control you need to keep your projects on track.
+              Whether you manage a single project or a portfolio of sites, {APP_NAME} provides the visibility and control you need to keep your projects on track.
             </p>
           </div>
         </div>
@@ -206,9 +207,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
-            <span>MEM - DAY ON SITE v1.0</span>
+            <span>{APP_NAME} v1.0</span>
           </div>
-          <p>&copy; {new Date().getFullYear()} MEM. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.</p>
         </div>
       </footer>
     </div>

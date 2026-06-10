@@ -74,9 +74,10 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 async function getUserAllowedProjectIds(userId: string): Promise<{ allProjects: boolean; projectIds: number[] }> {
   const user = await storage.getUser(userId);
   if (!user) return { allProjects: false, projectIds: [] };
+  // Admins and users without explicit project restrictions see all projects.
+  if (user.appRole === "admin") return { allProjects: true, projectIds: [] };
   const ids = user.projectIds as number[] | null;
-  if (!ids || ids.length === 0) return { allProjects: false, projectIds: [] };
-  if (ids.includes(-1)) return { allProjects: true, projectIds: [] };
+  if (!ids || ids.length === 0 || ids.includes(-1)) return { allProjects: true, projectIds: [] };
   return { allProjects: false, projectIds: ids };
 }
 
@@ -394,6 +395,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "A project with this code already exists" });
       }
       const project = await storage.createProject(validated);
+      const creator = await storage.getUser(req.session.userId!);
+      if (creator?.projectIds) {
+        const ids = creator.projectIds as number[];
+        if (!ids.includes(-1) && !ids.includes(project.id)) {
+          await storage.updateUser(creator.id, { projectIds: [...ids, project.id] });
+        }
+      }
       logEvent(req.session.userId, "Create Project", `Created project "${validated.name}" (${validated.code})`, "project", String(project.id));
       res.status(201).json(project);
     } catch (err: unknown) {

@@ -48,6 +48,7 @@ export async function seedDatabase() {
       orgRole: "Director",
       appRole: "admin",
       isActive: true,
+      projectIds: [-1],
     });
   }
 
@@ -62,6 +63,7 @@ export async function seedDatabase() {
       orgRole: "Project Manager",
       appRole: "user",
       isActive: true,
+      projectIds: [-1],
     });
     console.log(`Seeded test user: ${TEST_USER_EMAIL}`);
   }

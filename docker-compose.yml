@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: dailysitereport_db
+    restart: always
+    environment:
+      POSTGRES_DB: dailysitereport
+      POSTGRES_USER: parkland
+      POSTGRES_PASSWORD: Parkland123!
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    container_name: dailysitereport_app
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://parkland:Parkland123!@postgres:5432/dailysitereport
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:

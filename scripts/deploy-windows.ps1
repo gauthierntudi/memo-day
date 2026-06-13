@@ -24,5 +24,10 @@ if (-not (Test-Path "stack.env")) {
     exit 1
 }
 
-# This server has no docker-compose plugin - use plain docker commands
-& "$ScriptDir\deploy-windows-docker.ps1"
+$OsType = (docker info --format "{{.OSType}}" 2>$null).Trim()
+if ($OsType -eq "windows") {
+    Write-Host "Docker Windows mode detected — using native deploy (Node + PostgreSQL)." -ForegroundColor Yellow
+    & "$ScriptDir\deploy-windows-native.ps1"
+} else {
+    & "$ScriptDir\deploy-windows-docker.ps1"
+}

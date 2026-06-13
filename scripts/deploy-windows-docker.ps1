@@ -50,6 +50,18 @@ $UseLink = $false
 Write-Host "Docker version:" -ForegroundColor Cyan
 Run-Docker @("version")
 
+$OsType = (docker info --format "{{.OSType}}" 2>$null).Trim()
+if ($OsType -eq "windows") {
+    Write-Host ""
+    Write-Host "Docker is in WINDOWS container mode. Linux images (postgres:16, node:20-alpine) cannot run." -ForegroundColor Red
+    Write-Host "Use native deployment instead:" -ForegroundColor Yellow
+    Write-Host "  powershell -ExecutionPolicy Bypass -File .\scripts\deploy-windows-native.ps1" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Or switch Docker to Linux containers (Docker Desktop only):" -ForegroundColor Yellow
+    Write-Host '  & "$Env:ProgramFiles\Docker\Docker\DockerCli.exe" -SwitchDaemon' -ForegroundColor Yellow
+    exit 1
+}
+
 try {
     Run-Docker @("network", "create", $Network)
 } catch {

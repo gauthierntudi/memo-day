@@ -1,11 +1,9 @@
-# Deploy without docker-compose (Windows Server / Portainer host)
+# Deploy without docker-compose (Windows Server)
 # Usage:
 #   cd C:\apps\memo-day
-#   copy stack.env.example stack.env
-#   notepad stack.env
 #   powershell -ExecutionPolicy Bypass -File .\scripts\deploy-windows-docker.ps1
 
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
 
@@ -25,10 +23,13 @@ function Load-EnvFile {
     }
 }
 
-function Invoke-Docker {
-    param([string[]]$Args)
-    & docker @Args 2>&1 | ForEach-Object { Write-Host $_ }
-    return $LASTEXITCODE
+function Run-Docker {
+    param([Parameter(Mandatory = $true)][string[]]$Command)
+    Write-Host ("docker " + ($Command -join " ")) -ForegroundColor DarkGray
+    & docker @Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker command failed (exit $LASTEXITCODE): docker $($Command -join ' ')"
+    }
 }
 
 Load-EnvFile "$Root\stack.env"
@@ -42,52 +43,50 @@ $AppPort = if ($env:APP_PORT) { $env:APP_PORT } else { "3000" }
 $UseLink = $false
 
 Write-Host "Docker version:" -ForegroundColor Cyan
-Invoke-Docker @("version") | Out-Null
+Run-Docker @("version")
 
-# Try custom network; fallback to default bridge + --link if bridge plugin is missing
-$code = Invoke-Docker @("network", "create", $Network)
-if ($code -ne 0) {
-    Write-Host "Bridge network plugin unavailable - using default bridge with --link." -ForegroundColor Yellow
+try {
+    Run-Docker @("network", "create", $Network)
+} catch {
+    Write-Host "Custom network unavailable - using default bridge with --link." -ForegroundColor Yellow
     $UseLink = $true
 }
 
-Invoke-Docker @("volume", "create", $Volume) | Out-Null
-Invoke-Docker @("rm", "-f", $AppContainer) | Out-Null
-Invoke-Docker @("rm", "-f", $DbContainer) | Out-Null
+docker volume create $Volume 2>$null | Out-Null
+docker rm -f $AppContainer 2>$null | Out-Null
+docker rm -f $DbContainer 2>$null | Out-Null
 
 Write-Host "Starting PostgreSQL..." -ForegroundColor Cyan
 if ($UseLink) {
-    $code = Invoke-Docker @(
+    Run-Docker @(
         "run", "-d",
         "--name", $DbContainer,
         "--restart", "unless-stopped",
-        "-e", "POSTGRES_DB=$env:POSTGRES_DB",
-        "-e", "POSTGRES_USER=$env:POSTGRES_USER",
-        "-e", "POSTGRES_PASSWORD=$env:POSTGRES_PASSWORD",
+        "-e", "POSTGRES_DB=$($env:POSTGRES_DB)",
+        "-e", "POSTGRES_USER=$($env:POSTGRES_USER)",
+        "-e", "POSTGRES_PASSWORD=$($env:POSTGRES_PASSWORD)",
         "-v", "${Volume}:/var/lib/postgresql/data",
         "postgres:16"
     )
 } else {
-    $code = Invoke-Docker @(
+    Run-Docker @(
         "run", "-d",
         "--name", $DbContainer,
         "--network", $Network,
         "--restart", "unless-stopped",
-        "-e", "POSTGRES_DB=$env:POSTGRES_DB",
-        "-e", "POSTGRES_USER=$env:POSTGRES_USER",
-        "-e", "POSTGRES_PASSWORD=$env:POSTGRES_PASSWORD",
+        "-e", "POSTGRES_DB=$($env:POSTGRES_DB)",
+        "-e", "POSTGRES_USER=$($env:POSTGRES_USER)",
+        "-e", "POSTGRES_PASSWORD=$($env:POSTGRES_PASSWORD)",
         "-v", "${Volume}:/var/lib/postgresql/data",
         "postgres:16"
     )
 }
-if ($code -ne 0) { throw "Failed to start PostgreSQL container." }
 
 Write-Host "Waiting for PostgreSQL (20s)..." -ForegroundColor Cyan
 Start-Sleep -Seconds 20
 
 Write-Host "Building application image (may take several minutes)..." -ForegroundColor Cyan
-$code = Invoke-Docker @("build", "-t", $Image, ".")
-if ($code -ne 0) { throw "Docker build failed." }
+Run-Docker @("build", "-t", $Image, ".")
 
 if ($UseLink) {
     $DatabaseUrl = "postgresql://$($env:POSTGRES_USER):$($env:POSTGRES_PASSWORD)@postgres:5432/$($env:POSTGRES_DB)"
@@ -97,39 +96,39 @@ if ($UseLink) {
 
 Write-Host "Starting application..." -ForegroundColor Cyan
 if ($UseLink) {
-    $code = Invoke-Docker @(
+    Run-Docker @(
         "run", "-d",
         "--name", $AppContainer,
         "--link", "${DbContainer}:postgres",
         "--restart", "unless-stopped",
         "-e", "DATABASE_URL=$DatabaseUrl",
-        "-e", "SESSION_SECRET=$env:SESSION_SECRET",
+        "-e", "SESSION_SECRET=$($env:SESSION_SECRET)",
         "-e", "NODE_ENV=production",
         "-e", "PORT=5000",
         "-e", "COOKIE_SECURE=$($env:COOKIE_SECURE)",
-        "-p", "0.0.0.0:${AppPort}:5000",
+        "-p", "${AppPort}:5000",
         $Image
     )
 } else {
-    $code = Invoke-Docker @(
+    Run-Docker @(
         "run", "-d",
         "--name", $AppContainer,
         "--network", $Network,
         "--restart", "unless-stopped",
         "-e", "DATABASE_URL=$DatabaseUrl",
-        "-e", "SESSION_SECRET=$env:SESSION_SECRET",
+        "-e", "SESSION_SECRET=$($env:SESSION_SECRET)",
         "-e", "NODE_ENV=production",
         "-e", "PORT=5000",
         "-e", "COOKIE_SECURE=$($env:COOKIE_SECURE)",
-        "-p", "0.0.0.0:${AppPort}:5000",
+        "-p", "${AppPort}:5000",
         $Image
     )
 }
-if ($code -ne 0) { throw "Failed to start application container." }
 
 Write-Host ""
-Write-Host "Done." -ForegroundColor Green
+Write-Host "Success - containers are running." -ForegroundColor Green
+Run-Docker @("ps")
+Write-Host ""
 Write-Host "App: http://dailysitereport.parkland.lan:$AppPort"
 Write-Host "App: http://192.168.90.213:$AppPort"
-Write-Host "Check: docker ps"
-Write-Host "Logs:  docker logs -f $AppContainer"
+Write-Host "Logs: docker logs -f $AppContainer"

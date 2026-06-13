@@ -25,7 +25,15 @@ if (-not (Test-Path "stack.env")) {
     exit 1
 }
 
-docker compose --env-file stack.env up -d --build
+# Docker Compose lit automatiquement .env (compatible toutes versions)
+Copy-Item -Force stack.env .env
+
+# docker compose (v2) ou docker-compose (v1)
+if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+    docker-compose up -d --build
+} else {
+    docker compose up -d --build
+}
 
 Write-Host ""
 Write-Host "Done. App: http://dailysitereport.parkland.lan:3000" -ForegroundColor Green

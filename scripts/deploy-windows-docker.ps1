@@ -23,6 +23,11 @@ function Load-EnvFile {
     }
 }
 
+function Encode-PostgresPassword {
+    param([string]$Password)
+    return [uri]::EscapeDataString($Password)
+}
+
 function Run-Docker {
     param([Parameter(Mandatory = $true)][string[]]$Command)
     Write-Host ("docker " + ($Command -join " ")) -ForegroundColor DarkGray
@@ -88,10 +93,11 @@ Start-Sleep -Seconds 20
 Write-Host "Building application image (may take several minutes)..." -ForegroundColor Cyan
 Run-Docker @("build", "-t", $Image, ".")
 
+$EncodedPassword = Encode-PostgresPassword $env:POSTGRES_PASSWORD
 if ($UseLink) {
-    $DatabaseUrl = "postgresql://$($env:POSTGRES_USER):$($env:POSTGRES_PASSWORD)@postgres:5432/$($env:POSTGRES_DB)"
+    $DatabaseUrl = "postgresql://$($env:POSTGRES_USER):${EncodedPassword}@postgres:5432/$($env:POSTGRES_DB)"
 } else {
-    $DatabaseUrl = "postgresql://$($env:POSTGRES_USER):$($env:POSTGRES_PASSWORD)@${DbContainer}:5432/$($env:POSTGRES_DB)"
+    $DatabaseUrl = "postgresql://$($env:POSTGRES_USER):${EncodedPassword}@${DbContainer}:5432/$($env:POSTGRES_DB)"
 }
 
 Write-Host "Starting application..." -ForegroundColor Cyan

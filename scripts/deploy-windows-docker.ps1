@@ -12,7 +12,7 @@ Set-Location $Root
 function Load-EnvFile {
     param([string]$Path)
     if (-not (Test-Path $Path)) {
-        throw "Missing $Path — copy stack.env.example to stack.env and edit it."
+        throw "Missing $Path - copy stack.env.example to stack.env and edit it."
     }
     Get-Content $Path | ForEach-Object {
         $line = $_.Trim()
@@ -77,5 +77,5 @@ docker run -d `
 
 Write-Host ""
 Write-Host "Done." -ForegroundColor Green
-Write-Host "App: http://dailysitereport.parkland.lan:${AppPort}"
+Write-Host "App: http://dailysitereport.parkland.lan:$AppPort"
 Write-Host "Logs: docker logs -f $AppContainer"

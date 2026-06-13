@@ -66,7 +66,7 @@ app.use(
       maxAge: 30 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       sameSite: "lax",
-      secure: isProduction,
+      secure: process.env.COOKIE_SECURE === "true",
     },
   }),
 );

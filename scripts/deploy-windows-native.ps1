@@ -80,18 +80,8 @@ Write-Host "Applying database schema..." -ForegroundColor Cyan
 npm run db:push
 if ($LASTEXITCODE -ne 0) { throw "npm run db:push failed" }
 
-Write-Host ""
-Write-Host "Build complete. Start the app with:" -ForegroundColor Green
-Write-Host ""
-Write-Host "  `$env:DATABASE_URL='$DatabaseUrl'"
-Write-Host "  `$env:SESSION_SECRET='$($env:SESSION_SECRET)'"
-Write-Host "  `$env:NODE_ENV='production'"
-Write-Host "  `$env:PORT='$AppPort'"
-Write-Host "  `$env:COOKIE_SECURE='$($env:COOKIE_SECURE)'"
-Write-Host "  node dist/index.cjs"
-Write-Host ""
 Write-Host "App URL: http://dailysitereport.parkland.lan:$AppPort"
 Write-Host "App URL: http://192.168.90.213:$AppPort"
 Write-Host ""
-Write-Host "To run in background (keeps window open):" -ForegroundColor Cyan
-Write-Host "  Start-Process powershell -ArgumentList '-NoExit','-Command',\"cd '$Root'; `$env:DATABASE_URL='$DatabaseUrl'; `$env:SESSION_SECRET='$($env:SESSION_SECRET)'; `$env:NODE_ENV='production'; `$env:PORT='$AppPort'; `$env:COOKIE_SECURE='$($env:COOKIE_SECURE)'; node dist/index.cjs\""
+Write-Host "Start the app:" -ForegroundColor Cyan
+Write-Host "  powershell -ExecutionPolicy Bypass -File .\scripts\start-windows-native.ps1"

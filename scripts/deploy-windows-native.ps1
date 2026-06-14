@@ -48,8 +48,9 @@ $EncodedPassword = Encode-PostgresPassword $env:POSTGRES_PASSWORD
 $DatabaseUrl = "postgresql://$($env:POSTGRES_USER):${EncodedPassword}@${DbHost}:5432/$($env:POSTGRES_DB)"
 
 $env:DATABASE_URL = $DatabaseUrl
-$env:NODE_ENV = "production"
 $env:PORT = $AppPort
+# Do not set NODE_ENV=production before npm ci — it skips devDependencies (tsx, vite, drizzle-kit)
+if ($env:NODE_ENV -eq "production") { Remove-Item Env:NODE_ENV -ErrorAction SilentlyContinue }
 if (-not $env:SESSION_SECRET -or $env:SESSION_SECRET -like "change-me*") {
     throw "Set SESSION_SECRET in stack.env (min 32 random characters)."
 }
